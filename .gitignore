@@ -3,3 +3,7 @@ renv/
 
 /.quarto/
 **/*.quarto_ipynb
+data-r/beta.parquet
+data-r/compustat.parquet
+data-r/crsp_monthly.parquet
+data-r/fisd.parquet

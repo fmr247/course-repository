@@ -171,24 +171,43 @@ The learning curve is very steep, remember to reach out in case something is unc
 
 ## Language-agnostic coding
 
-![](figures/paths.jpg){width=30% fig-align="center"}
 
-- Instead of sharpening coding skills within Python *or* R, I want to make a case for tidy coding
+:::: {.columns}
+::: {.column width="60%"}
+-	Focus on **tidy coding**, not just language proficiency
 - Clean, reproducible code can be achieved using Python *and* R
 - Follow standard ground rules and irrespective of your preferences, code will be readable, understandable, and intuitive 
+:::
+::: {.column width="40%"}
+![](figures/paths.jpg){width=100% fig-align="center"}
+:::
+::::
 
-## Why Python and R?
+## Select your coding language
 
-I stick to R or Python (or Julia) because
+Stick to R, Python (or Julia) because:
 
-1. coding languages should be open-source
-2. you want an active community of users
-3. coding languages should be well-established within the (finance) industry
-4. we need communication tools to ensure reproducibility, high-quality visualization, and flexibility for data input and wrangling
+- **Open source**: to avoid license issues (or work with computing clusters)
+- **Active community**: to benefit  from robust support & shared knowledge
+- **Industry standards**: to align with well-established tools (in finance)
+- **Versatility**: reproducibility, high-quality visualization & flexible data handling
+- Typically **less critical** in academia: **execution speed** in interactive sessions
 
-Less of an issue
+## Python & R
 
-1. Computing speed (unless you want to work in HF or similar fields)
+| Python                                 | R                                      |
+|----------------------------------------|----------------------------------------|
+| General language                       | Specialized language                   |
+| Developed by computer scientists       | Developed by statisticians             |
+| Object-oriented programming            | Functional programming                 |
+| Obsessed with efficiency               | Lazy about efficiency                  |
+| Obsessed with namespacing              | Lazy about namespacing                 |
+| Small, medium, and large data          | Small and medium data                  |
+| Machine learning and deep learning     | Data wrangling and visualization       |
+| Spacing is part of the syntax          | Spacing is for convenience             |
+| Indices start with 0                   | Indices start with 1                   |
+
+See details [here](https://occasionaldivergences.com/posts/python-intro/) 
 
 ## What is R? Python? Quarto?
 

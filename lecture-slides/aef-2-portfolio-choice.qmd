@@ -1,27 +1,3 @@
----
-title: "Advanced Empirical Finance: Topics and Data Science"
-subtitle: Asset prices and returns
-author: 
-  name: Stefan Voigt
-  affiliations: University of Copenhagen and Danish Finance Institute (DFI)
-  orcid: 0000-0001-5619-3161
-date: today
-date-format: "[Spring] YYYY"
-format: revealjs
-theme: ku_clean.scss
-pdf-separate-fragments: false
-slide-number: false
-logo: ku_logo.png
-smaller: true
-html-math-method:
-  method: mathjax
-  url: http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
-embed-resources: true
-self-contained-math: true
-execute:
-  echo: true
----
-
 # Asset prices and returns
 
 ## Asset prices and returns
@@ -53,7 +29,6 @@ library(scales)
 ```
 
 ```{r}
-#| cache: true
 library(tidyverse)
 library(tidyfinance)
 
@@ -820,7 +795,6 @@ def roll_capm_estimation(data, window_size, min_obs):
 
 ## CAPM beta in the industry-cross section
 ```{r}
-#| cache: true
 #| echo: false
 beta <- read_parquet("../data-r/beta.parquet") |>
   inner_join(crsp_monthly, join_by(date, permno)) |> filter(return_type =="monthly") 

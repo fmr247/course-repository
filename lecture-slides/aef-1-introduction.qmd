@@ -1,32 +1,3 @@
----
-title: "Advanced Empirical Finance: Topics and Data Science"
-subtitle: Introduction and course overview
-author: 
-  name: Stefan Voigt
-  affiliations: University of Copenhagen and Danish Finance Institute (DFI)
-  orcid: 0000-0001-5619-3161
-date: today
-date-format: "[Spring] YYYY"
-format: revealjs
-theme: ku_clean.scss
-pdf-separate-fragments: false
-slide-number: false
-logo: ku_logo.png
-smaller: true
-html-math-method:
-  method: mathjax
-  url: http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
-embed-resources: true
-self-contained-math: true
-execute:
-  echo: true
----
-
-```{r initialize}
-#| echo: false
-library(reticulate)
-```
-
 # Welcome!
 
 ## Kicking off Advanced Empirical Finance (AEF)
@@ -45,7 +16,7 @@ Empirical finance is finance measured against reality
 - Financial markets provide vast data to inform financial decisions
 - Can we predict investment risks? What determines asset prices?
 
-Data Sciencebuzzwords: big data, machine learning, AI
+Data Science buzzwords: big data, machine learning, AI
 
 - The less intriguing reality: How to extract knowledge from typically very large or unstructured data?
 - We incorporate skills from computer science, statistics, and information visualization, projected on economics theory
@@ -104,15 +75,14 @@ Related courses to consider
 - We provide all exercises, slides, data, and other documents via Github / Absalon
 - **Rest of the team**: all the peers around you - connect and help each other out!
 
-Lecture hall
-
-- Lecture: CSS 25-01-53. Exercise classes: CSS 4-1-30
+- Lectures: CSS 25-01-53. Exercise classes: CSS 4-1-30
 - I record all lectures (no guarantee that things always work, and the ultimate priority is the crowd on campus)
 
 ## This is how the course works
 
 
-- **You can do tech without statistics but you cannot do it without coding**
+You can do tech without statistics but you cannot do it without coding
+
 - Lectures on Monday (even weeks) and every Thursday ([see timetable](https://kurser.ku.dk/course/a%C3%98kk08407u/)): state-of-the-art methods and theory
 - Lecture plan contains weekly coding assignments
 - I provide detailed solutions - but you are *strongly recommended* to solve everything on your own
@@ -241,8 +211,8 @@ See details [here](https://occasionaldivergences.com/posts/python-intro/)
 ![](figures/tidyverse_workflow.png){width=60% fig-align="center"}
 
 - In R we work almost exclusively with tidyverse packages: ggplot, dplyr, readr, ...
-- The tidyverse is "a framework for managing data that aims at doing the cleaning and preparing steps much easier"
-- [Hadley Wickhams and Garret Grolemunds famous book *R for Data Science*](https://r4ds.hadley.nz/) explains everything we need
+- The tidyverse is "a framework [...] that aims at doing the cleaning and preparing steps much easier"
+- [Wickhams and Grolemunds book *R for Data Science*](https://r4ds.hadley.nz/) explains everything we need
 - During this semester, we cover almost every topic from their book
 - Python library equivalents: `pandas`, `numpy`, `plotnine`
 
@@ -302,7 +272,7 @@ prices <- prices |>
   mutate(volume_usd = traded_shares * close / 1000000) # Volume in million USD
 ```
 
-- Do not get confused. Some teaching ressources in R use (outdated) `%>%` instead of `|>`!
+- Do not get confused. Some teaching ressources (and LLM) use (outdated) `%>%` instead of `|>` in R!
 
 ## Python
 
@@ -393,10 +363,9 @@ prices.groupby("symbol").size()
 
 ![](figures/tidydata.png){width=40% fig-align="center"}
 
-- Did you ever think about what makes data easy to work with?
 - Clear data structure to ensure similar workflows for everyday tasks
 - Tidy data is a standard way of mapping the meaning of a dataset to its structure
-- In tidy data, each variable forms a column. Each observation forms a row. Each cell is a single measurement
+- Each variable forms a column. Each observation forms a row. Each cell is a single measurement
 
 ## Tidy coding principles in a nutshell
 
@@ -441,22 +410,19 @@ returns.head(10)
 
 ## The grammar of graphics
 
-- `ggplot2`: *G*rammar of *g*raphics differentiates between the data and the representation
-- Data (data frame being plotted)
-- Geometrics (geometric shape that represents the data: point, boxplot, histogram)
-- Aesthetics (color, size, shape)
+- `ggplot2`: *G*rammar of *g*raphics differentiates between the data and the representation: i) Data (data frame being plotted), ii) Geometrics (geometric shape that represents the data, e.g. point, boxplot, histogram), iii) Aesthetics (color, size, shape)
+- Virtually unlimited possibilities, see [Cedric Scherer's blog](https://cedricscherer.netlify.app/top/dataviz/)
 
 :::{.panel-tabset  group="language"}
 
 ## R 
 ```{r}
 #| output-location: slide
-library(scales) # for scale labeling
-
-price_plot <- prices |> ggplot() + aes(x = date, y = volume_usd, color = symbol) +
-  geom_point(size = 0.2) + geom_line(linetype = "dotted")
-
-price_plot + labs(x = "Year", y ="Volume (USD)", title = "Daily trading volume", color = NULL) +
+library(scales)
+prices |> 
+  ggplot(aes(x = date, y = volume_usd, color = symbol)) +
+  geom_point(size = 0.2) + geom_line(linetype = "dotted") + 
+  labs(x = "Year", y ="Volume (USD)", title = "Daily trading volume", color = NULL) +
   facet_wrap(~symbol, scales = "free_x") + theme_bw() +
   scale_y_continuous(labels = scales::unit_format(unit = "M", 
                                                   prefix = "$")) +
@@ -464,7 +430,6 @@ price_plot + labs(x = "Year", y ="Volume (USD)", title = "Daily trading volume",
 ```
 
 - Many more themes here: https://ggplot2.tidyverse.org/reference/ggtheme.html
-- Virtually unlimited possibilities, see [Cedric Scherer's blog](https://cedricscherer.netlify.app/top/dataviz/)
 
 ## Python
 ```{python}

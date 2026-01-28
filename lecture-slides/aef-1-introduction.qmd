@@ -1,6 +1,6 @@
 ---
 title: "Advanced Empirical Finance: Topics and Data Science"
-subtitle: Introduction and Course Overview
+subtitle: Introduction and course overview
 author: 
   name: Stefan Voigt
   affiliations: University of Copenhagen and Danish Finance Institute (DFI)
@@ -29,7 +29,7 @@ library(reticulate)
 
 # Welcome!
 
-## First: The fine print
+## Kicking off Advanced Empirical Finance (AEF)
 
 - What is this course about?
 - How is this course organized?
@@ -40,17 +40,15 @@ library(reticulate)
 
 **(How) can state-of-the-art methods improve financial decision making?**
 
-Empirical finance
+Empirical finance is finance measured against reality
 
-- Broadly: Empirical finance is finance measured against reality
-- Financial markets provide vast data to inform financial decisions: Can we predict investment risks? What determines asset prices?
+- Financial markets provide vast data to inform financial decisions
+- Can we predict investment risks? What determines asset prices?
 
-Data Science
+Data Sciencebuzzwords: big data, machine learning, AI
 
-- Plethora of buzzwords: big data, machine learning, AI
 - The less intriguing reality: How to extract knowledge from typically very large or unstructured data?
-- This course: We incorporate skills from computer science, statistics, and information visualization, projected on economics theory
-- *You can (try to) do tech without statistics, but you cannot do it without coding*
+- We incorporate skills from computer science, statistics, and information visualization, projected on economics theory
 
 ## Topics of this course
 
@@ -78,7 +76,7 @@ Guided coding assignments
 The lecture is based on very recent academic papers
 
 - We discuss and criticize multifactor asset pricing, portfolio choice, and high-frequency econometrics
-- The reading list is available on Absalon
+- The reading list is available on the [course homepage](https://advanced-empirical-finance.github.io/AEF-2026-course-homepage/slides-index.html)
 - Be prepared to discuss the literature during the lecture
 
 ## This course within the KU curriculum
@@ -92,7 +90,7 @@ Related courses to consider
 
 - Introduction to Programming and Numerical Analysis
 - Various seminars in (applied) finance
-- Master thesis in our finance track (Do you consider writing your thesis on empirical finance? [Check my homepage](https://https://www.voigtstefan.me/blog/blog-thesis-supervision.html) and get in touch *early*!)
+- Master thesis in our finance track (empirical finance? [Check my homepage](https://https://www.voigtstefan.me/blog/blog-thesis-supervision.html) and get in touch *early*)
 
 # Administration
 
@@ -113,7 +111,8 @@ Lecture hall
 
 ## This is how the course works
 
-- **Most effort of this course should be spend on *doing* empirical work!**
+
+- **You can do tech without statistics but you cannot do it without coding**
 - Lectures on Monday (even weeks) and every Thursday ([see timetable](https://kurser.ku.dk/course/a%C3%98kk08407u/)): state-of-the-art methods and theory
 - Lecture plan contains weekly coding assignments
 - I provide detailed solutions - but you are *strongly recommended* to solve everything on your own
@@ -138,7 +137,6 @@ The learning curve is very steep, remember to reach out in case something is unc
 
 - The assignments (and data, eventually) will always be uploaded on Absalon
 - Deadline: One week to work on your solutions
-- To submit you will need to unlock the Peergrade panel once in Absalon
 - **Minimum requirement to get feedback:** Attempt to solve every task. Document your struggles if you do not finish an exercise. The code needs to run without any error or interruption so that your peers can focus on the content instead of fixing your bugs
 
 ## Peer feedback
@@ -177,6 +175,9 @@ The learning curve is very steep, remember to reach out in case something is unc
 -	Focus on **tidy coding**, not just language proficiency
 - Clean, reproducible code can be achieved using Python *and* R
 - Follow standard ground rules and irrespective of your preferences, code will be readable, understandable, and intuitive 
+
+- You will give feedback on Python and R submissions - stick to tidy coding principles, and you will be able to understand what the code of your peers is doing even if you are not an expert in their chosen language
+- Reversely, that means: Take tidy coding seriously to maximize your chance for valuable feedback
 :::
 ::: {.column width="40%"}
 ![](figures/paths.jpg){width=100% fig-align="center"}
@@ -192,6 +193,7 @@ Stick to R, Python (or Julia) because:
 - **Industry standards**: to align with well-established tools (in finance)
 - **Versatility**: reproducibility, high-quality visualization & flexible data handling
 - Typically **less critical** in academia: **execution speed** in interactive sessions
+
 
 ## Python & R
 
@@ -209,14 +211,13 @@ Stick to R, Python (or Julia) because:
 
 See details [here](https://occasionaldivergences.com/posts/python-intro/) 
 
-## What is R? Python? Quarto?
+## What is Quarto?
 
 - R and Python are languages and environments for statistical computing
-- Both are free to download and use / open-source (Users can expand the functionalities through add-ons called packages or libraries) / Data processing is easy / Data visualization tools are pervasive
-- Python and R are nowadays the de-facto standard tools in finance
 - With Quarto you can embed code directly into the analysis. It is easy to share your reproducible R and Python output using Quarto
 
 ![](figures/quarto.png){width=40% fig-align="center"}
+
 
 ## Why Positron? Setup for this course
 
@@ -224,27 +225,23 @@ See details [here](https://occasionaldivergences.com/posts/python-intro/)
 - Strongly recommend using Positron as an interface, but you can use other editors
 - Advanced embedding of version control (Github) and AI tools
 - You can use either Python or R and process your code with Quarto (there will be an asynchronous lecture on how to use Quarto)
-- There are solutions to the exercises in both R and Python
-- During peer feedback you may receive Python or R submissions - stick to tidy coding principles, and you will be able to understand what the code of your peers is doing even if you are not an expert in their chosen language
-- Reversely, that means: Take tidy coding seriously to maximize your chance for valuable feedback
 - We will all work in the same environment to ensure your peers can reproduce your results
 
 ## Getting started with Positron
 
-- In case you did not set your environment up yet, follow the Technical Prerequisite section in Absalon:
-- [Install R / Python / Positron](https://positron.posit.co/install.html) / [clone the course repository](https://github.com/advanced-empirical-finance/course_repository)
+- In case you did not set your environment up yet, follow [Exercise 0](https://advanced-empirical-finance.github.io/AEF-2026-course-homepage/exercises/technical-prerequisites.html)
 
 - If you have never used R, Chapters 1-3 of this book are an excellent starting point: [**Basic introduction to R**](https://rstudio-education.github.io/hopr/basics.html)
 - Sign up for a [free account at DataCamp](https://www.datacamp.com/groups/shared_links/a41b35fa93b016f13feb030feaa8513f946215a05f5bc2e285fd1da193d2d115) (only with econ.ku.dk or alumni.ku.dk address)
 
 ![](figures/r-learning-curve.png){width=60% fig-align="center"}
 
-## Data science workflow with the tidyverse and pandas / numpy
+## Data science workflow: tidyverse and pandas
 
 ![](figures/tidyverse_workflow.png){width=60% fig-align="center"}
 
-- The tidyverse is "a framework for managing data that aims at doing the cleaning and preparing steps much easier"
 - In R we work almost exclusively with tidyverse packages: ggplot, dplyr, readr, ...
+- The tidyverse is "a framework for managing data that aims at doing the cleaning and preparing steps much easier"
 - [Hadley Wickhams and Garret Grolemunds famous book *R for Data Science*](https://r4ds.hadley.nz/) explains everything we need
 - During this semester, we cover almost every topic from their book
 - Python library equivalents: `pandas`, `numpy`, `plotnine`
@@ -289,7 +286,7 @@ prices = tf.download_data(
 
 ::: 
 
-## Give your code some air `|>` and `.`
+## Give your code some air with `|>` and `.`
 
 - `verb(subject, complement)` is replaced by `subject |> verb(complement)` (R) or `subject.verb(complement)` (Python)
 - No need to name unimportant variables
@@ -401,58 +398,6 @@ prices.groupby("symbol").size()
 - Tidy data is a standard way of mapping the meaning of a dataset to its structure
 - In tidy data, each variable forms a column. Each observation forms a row. Each cell is a single measurement
 
-## The grammar of graphics
-
-- `ggplot2`: *G*rammar of *g*raphics differentiates between the data and the representation
-- Data (data frame being plotted)
-- Geometrics (geometric shape that represents the data: point, boxplot, histogram)
-- Aesthetics (color, size, shape)
-
-:::{.panel-tabset  group="language"}
-
-## R 
-```{r}
-price_plot <- prices |> ggplot() + aes(x = date, y = volume_usd, color = symbol) +
-  geom_point(size = 0.2) + geom_line(linetype = "dotted")
-```
-
-```{r}
-#| output-location: slide
-library(scales) # for scale labeling
-price_plot + labs(x = "Year", y ="Volume (USD)", title = "Daily trading volume", color = NULL) +
-  facet_wrap(~symbol, scales = "free_x") + theme_bw() +
-  scale_y_continuous(labels = scales::unit_format(unit = "M", 
-                                                  prefix = "$")) +
-                                                  theme(legend.position = "none")
-```
-
-- Many more themes here: https://ggplot2.tidyverse.org/reference/ggtheme.html
-- Virtually unlimited possibilities, see [Cedric Scherer's blog](https://cedricscherer.netlify.app/top/dataviz/)
-
-## Python
-```{python}
-#| eval: false
-from plotnine import *
-from mizani.formatters import dollar_format
-price_plot = (
-    ggplot(prices, aes(x="date", y="volume_usd", color="symbol"))
-    + geom_point(size=0.2)
-    + geom_line(linetype="dotted")
-    + labs(
-        x="Year",
-        y="Volume (USD)",
-        title="Daily volume",
-        color=None
-    )
-    + facet_wrap("~symbol", scales="free_x")
-    + theme_bw()
-    + scale_y_continuous(labels=dollar_format(suffix="M", scale=1e-6))
-)
-price_plot.show()
-``` 
-
-::: 
-
 ## Tidy coding principles in a nutshell
 
 - Great code is very subjective but the aim should be to make it human-readable
@@ -493,6 +438,59 @@ returns.head(10)
 ```
 :::
 ::::
+
+## The grammar of graphics
+
+- `ggplot2`: *G*rammar of *g*raphics differentiates between the data and the representation
+- Data (data frame being plotted)
+- Geometrics (geometric shape that represents the data: point, boxplot, histogram)
+- Aesthetics (color, size, shape)
+
+:::{.panel-tabset  group="language"}
+
+## R 
+```{r}
+#| output-location: slide
+library(scales) # for scale labeling
+
+price_plot <- prices |> ggplot() + aes(x = date, y = volume_usd, color = symbol) +
+  geom_point(size = 0.2) + geom_line(linetype = "dotted")
+
+price_plot + labs(x = "Year", y ="Volume (USD)", title = "Daily trading volume", color = NULL) +
+  facet_wrap(~symbol, scales = "free_x") + theme_bw() +
+  scale_y_continuous(labels = scales::unit_format(unit = "M", 
+                                                  prefix = "$")) +
+                                                  theme(legend.position = "none")
+```
+
+- Many more themes here: https://ggplot2.tidyverse.org/reference/ggtheme.html
+- Virtually unlimited possibilities, see [Cedric Scherer's blog](https://cedricscherer.netlify.app/top/dataviz/)
+
+## Python
+```{python}
+#| eval: false
+from plotnine import *
+from mizani.formatters import dollar_format
+price_plot = (
+    ggplot(prices, aes(x="date", y="volume_usd", color="symbol"))
+    + geom_point(size=0.2)
+    + geom_line(linetype="dotted")
+    + labs(
+        x="Year",
+        y="Volume (USD)",
+        title="Daily volume",
+        color=None
+    )
+    + facet_wrap("~symbol", scales="free_x")
+    + theme_bw()
+    + scale_y_continuous(labels=dollar_format(suffix="M", scale=1e-6))
+)
+price_plot.show()
+``` 
+
+::: 
+
+
 
 ## How to get help online and from peers
 

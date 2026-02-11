@@ -284,8 +284,8 @@ $$
 $$ 
 
 with $\lambda^* = 2\frac{c\bar\mu + (1-c)\tilde\mu - D/C}{E-D^2/C}$.
-- As a result, any portfolio of two efficient portfolios is also efficient
-- [Mutual fund separation theorem](https://en.wikipedia.org/wiki/Mutual_fund_separation_theorem): any **linear combination** of efficient portfolios, is also efficient
+
+- [Mutual fund separation theorem](https://en.wikipedia.org/wiki/Mutual_fund_separation_theorem): any **linear combination** of efficient portfolios is also efficient
 
 $$\omega_{eff} = a \cdot \omega_{efp} + (1-a) \cdot\omega_{mvp}$$
 
@@ -373,7 +373,7 @@ summaries |>
 ## The efficient frontier with a risk-free rate
 
 - portfolio weight vector $\omega\in\mathbb{R}^N$ which denotes investments into the available $N$ risky assets. 
-- Instead of $\sum_i^N \omega_i=1$, **now** instead assume that all the remaining wealth, $1-\iota'\omega$, is invested in a risk-free asset which pays a constant interest $r_f > 0$
+- **Now: ** Instead of $\sum_i^N \omega_i=1$, assume that all the remaining wealth, $1-\iota'\omega$, is invested in a risk-free asset which pays a constant interest $r_f > 0$
 - The expected portfolio return for the portfolio of risky assets $\omega$ is then
 $$
 \mu_\omega = \omega^{\prime}\mu + (1-\iota^{\prime}\omega)r_f = r_f + \omega^{\prime}\underbrace{(\mu-r_f)}_{\tilde\mu}
@@ -384,8 +384,6 @@ $$
 $$
 \sigma_\omega = \sqrt{\omega^{\prime}\Sigma\omega}
 $$
-
-where $\Sigma$ is the variance-covariance matrix of the returns 
 
 ## Optimal decision problem
 - earn a desired level of expected portfolio (excess) returns ($\bar\mu-r_f$) with the lowest possible variance leads to
@@ -456,6 +454,9 @@ sharpe_ratio = (mu_w - rf) / sigma_w
 assets |> 
   ggplot(aes(x = sigma, y = mu)) +
   geom_point() + 
+  geom_line(
+    data = summaries |> filter(!is.na(a)), linewidth = 0.5,
+    linetype = "dotted") + 
   geom_point(data = efficient_portfolios, color = "blue") +
   geom_label_repel(data = efficient_portfolios,
                    aes(label = symbol), parse = TRUE) +
@@ -465,7 +466,7 @@ assets |>
     x = "Volatility", y = "Expected return",
     title = "The efficient frontier with a risk-free asset and Dow index constituents"
   ) +
-  geom_abline(aes(intercept = rf, slope = sharpe_ratio), linetype = "dotted")
+  geom_abline(aes(intercept = rf, slope = sharpe_ratio))
 ```
 ::: 
 
@@ -476,6 +477,7 @@ assets |>
 $$
 \frac{\partial Z}{\partial \omega} = 2\Sigma\omega - \lambda \tilde\mu =0 \\\Leftrightarrow \tilde\mu = \frac{2}{\lambda}\Sigma\omega^* = \frac{2}{\lambda}\underbrace{\iota'\omega^*}_{=\frac{\lambda}{2}\iota^{\prime}\Sigma^{-1}\tilde\mu}\Sigma\omega_\text{tan} \\ = \iota^{\prime}\Sigma^{-1}\tilde\mu\Sigma\omega_\text{tan}
 $$
+
 - Putting everything together yields for the expected excess return of asset $i$: 
 
 $$
@@ -508,14 +510,16 @@ price_of_risk = float(w_tan.T @ mu - rf)
 #| echo: false
 assets |> 
   ggplot(aes(x = beta, y = mu)) +
-  geom_point() +
+  geom_point()  + 
+  ggrepel::geom_text_repel(aes(label = symbol), max.overlaps = Inf) +
   geom_abline(intercept = rf, slope = price_of_risk) +
   scale_y_continuous(labels = percent) +
   labs(
     x = "Beta", y = "Expected return",
     title = "Security market line"
   ) +
-  annotate("text", x = 0, y = rf, label = "Risk-free")
+  geom_label_repel(data = tibble(beta = 0, mu = rf), aes(label = "Risk-free"))
+
 ```
 ::: 
 
@@ -586,17 +590,21 @@ $$\beta_i = \frac{\sigma_{im}}{\sigma_m^2}$$
 ```{r}
 #| echo: false
 library(arrow)
+library(gt)
 factors_ff_monthly <- read_parquet("../data-r/factors_ff3_monthly.parquet")
 factors_ff_monthly |> 
     mutate(mkt_excess = 100 * mkt_excess) |> 
     summarise(across(mkt_excess, list(mean = ~ 12 * mean(.), 
-                                      sd = ~sqrt(12) * sd(.), 
+                                      "\u03C3̂" = ~sqrt(12) * sd(.), 
                                       Sharpe = ~sqrt(12) * mean(.)/sd(.)),
-                     .names = "{.fn} (annualized)")) |>
-  kableExtra::kable()
+                     .names = "{.fn}")) |>
+                      gt() |>
+  fmt_number(columns = everything(), decimals = 2) |> 
+  tab_footnote(
+    footnote = "All values are annualized.")
 ```
 
-## Regression specification of stock $i$
+## Regression specification of stock
 
 $$
 r_{i,t} - r_{f,t} = \alpha_i + \underbrace{\frac{Cov(r_i, r_m)}{\text{Var}(r_m)}}_{\beta_i} (r_{m,t} - r_{f,t}) + \varepsilon_{i, t}
@@ -607,9 +615,7 @@ $$
 - To determine whether the portfolio/asset generates abnormal returns relative to the CAPM risk model, we evaluate whether the fitted intercept coefficient $\alpha_i$, which serves as the estimate of the average abnormal return per period, is statistically distinguishable from zero
 - \textcolor{red}{Discuss:} What are the questionable assumptions behind the baseline regression framework? 
 
-## CAPM - Example
-
-- Simple linear regression (OLS)
+## CAPM - Example with simple linear regression
 ```{r}
 #| echo: false
 library(broom)
@@ -657,12 +663,8 @@ ggplot(apple_monthly, aes(x = mkt_excess, y = ret_excess)) +
   scale_y_continuous(labels = percent) +
 
   labs(
-    title = "CAPM for Apple (AAPL)",
-    subtitle = "α shown as intercept, β shown as market sensitivity",
     x = "Market Excess Return",
-    y = "AAPL Excess Return"
-  ) +
-
+    y = "AAPL Excess Return"  ) +
   annotate(
     "text",
     x = dx,
@@ -695,9 +697,9 @@ ggplot(apple_monthly, aes(x = mkt_excess, y = ret_excess)) +
 
 - Note that in the textbook, we explain how to get CRSP data from the WRDS interface. This does not work on the KU campus! As a KU student you have access only to CRSP data 
 
-## Composition of the CRSP sample (Chapter 7, Bali, Murray, Engle)
+## Composition of the CRSP sample
 
-- Familiarize yourself with the cleaning steps in the exercise on the CRSP sample
+- Familiarize yourself with the cleaning steps in the exercise on the CRSP sample  (Chapter 7, Bali, Murray, Engle)
 - Monthly processed (!) data is available in `crsp_monthly.parquet` file in Absalon
 - Only contains US stocks (`shrcd%in%c(10,11)`)
 - Variable `exchcd` determines listing exchanges, `siccd` lists industry
@@ -818,6 +820,7 @@ portfolios
 :::{.panel-tabset}
 ## R 
 ```{r}
+#| output: false
 beta_portfolios <- beta |> # A stylized example 
   group_by(date) |>
   mutate(breakpoint = median(beta),
@@ -864,7 +867,7 @@ long_short = (
 - Portfolio 10 corresponds to the highest beta decile
 - Each bar corresponds to the CAPM alpha of the value-weighted portfolio performance
 
-## How to use (CAPM) factor structure for portfolio optimization
+## How to use any factor structure for portfolio optimization
 
 - Suppose the CAPM holds: implied factor structure for expected excess returns is
 $$
@@ -917,15 +920,10 @@ J = \frac{T-N-1}{N}\left(1 + \frac{\hat \mu_m ^2}{\hat\sigma_m^2}\right)^{-1}\ha
 $$
 
 where $\hat\Sigma = Cov(\hat\varepsilon)$ and $\hat\sigma$ is the standard deviation of the market excess returns.
+
 - Under the null hypothesis, $J$ is unconditionally distributed central $F$ with
 $N$ degrees of freedom in the numerator and $(T-N-1)$ degrees of freedom
 in the denominator
-
-### Exercises - compute the test statistics for a sample of portfolio returns
-
-1. Compute the MLE estimates and the test statistic `J <-  `
-1. Evaluate the $p$-value `pf(J, T, T - N - 1)` with appropriate degrees of freedom
-
 - For more information, see Chapter 4 of *The Econometrics of Financial Markets*
 
 ## Fama Mac-Beth regressions
@@ -1001,6 +999,7 @@ $$
 $$
 
 Note that $r_t^{pf} = \omega_t'r_{t+1}$ where $\omega_t$ denotes the weights based on information available up to time $t$
+
 - Portfolio volatility $\sqrt{\hat\sigma^2\left(r^{pf}\right)}$
 - Later we will also consider transaction costs which depend on rebalancing from $\omega_{t-1}$ to $\omega_{t}$
 
@@ -1012,7 +1011,6 @@ Note that $r_t^{pf} = \omega_t'r_{t+1}$ where $\omega_t$ denotes the weights bas
 :::: {.columns}
 ::: {.column width="45%"}
 ```{r}
-# R
 for (value in c("My", "first", "for", "loop")) {
   print(value)
 }
@@ -1020,7 +1018,6 @@ for (value in c("My", "first", "for", "loop")) {
 :::
 ::: {.column width="45%"}
 ```{python}
-# Python
 for value in ["My", "first", "for", "loop"]:
     print(value)
  

@@ -67,8 +67,8 @@ symbols = tf.download_data(
 prices_daily = tf.download_data(
   domain="stock_prices", 
   symbols=symbols["symbol"].tolist(),
-  start_date="2000-01-01", 
-  end_date="2025-01-15"
+  start_date="2019-08-01",
+  end_date="2026-01-15"
 )
 
 returns_monthly = (prices_daily
@@ -154,7 +154,7 @@ assets |>
 # Optimal portfolio allocation
 
 ## Optimal (static) portfolio choice
-- **Aim:** Choose $(N \times 1)$ vector $\omega$ such that $\sum\limits_{t=1}^T \omega_i = \iota'\omega = 1$ where $\iota$ is an $(N\times 1)$ vector of ones
+- **Aim:** Choose $(N \times 1)$ vector $\omega$ such that $\sum\limits_{i=1}^N \omega_i = \iota'\omega = 1$ where $\iota$ is an $(N\times 1)$ vector of ones
 - Portfolio returns $r^{pf}_{t} = \omega'r_t$
 - Common properties of utility functions (concave) 
 $$
@@ -287,7 +287,7 @@ with $\lambda^* = 2\frac{c\bar\mu + (1-c)\tilde\mu - D/C}{E-D^2/C}$.
 
 - [Mutual fund separation theorem](https://en.wikipedia.org/wiki/Mutual_fund_separation_theorem): any **linear combination** of efficient portfolios is also efficient
 
-$$\omega_{eff} = a \cdot \omega_{efp} + (1-a) \cdot\omega_{mvp}$$
+$$\omega_\text{eff} = a \cdot \omega_\text{efp} + (1-a) \cdot \omega_\text{mvp}$$
 
 - Highest achievable expected return at each level of risk
 
@@ -373,7 +373,7 @@ summaries |>
 ## The efficient frontier with a risk-free rate
 
 - portfolio weight vector $\omega\in\mathbb{R}^N$ which denotes investments into the available $N$ risky assets. 
-- **Now: ** Instead of $\sum_i^N \omega_i=1$, assume that all the remaining wealth, $1-\iota'\omega$, is invested in a risk-free asset which pays a constant interest $r_f > 0$
+- **Now: ** Instead of $\sum_{i=1}^N \omega_i=1$, assume that all the remaining wealth, $1-\iota'\omega$, is invested in a risk-free asset which pays a constant interest $r_f > 0$
 - The expected portfolio return for the portfolio of risky assets $\omega$ is then
 $$
 \mu_\omega = \omega^{\prime}\mu + (1-\iota^{\prime}\omega)r_f = r_f + \omega^{\prime}\underbrace{(\mu-r_f)}_{\tilde\mu}
@@ -407,7 +407,7 @@ $$
 \omega^* = \frac{\bar\mu}{\tilde\mu^{\prime}\Sigma^{-1}\tilde\mu}\Sigma^{-1}\tilde\mu \Rightarrow \omega_\text{tan} := \frac{\omega^*}{\iota'\omega^*}= \frac{\Sigma^{-1}(\mu-r_f)}{\iota^{\prime}\Sigma^{-1}(\mu-r_f)}.
 $$
 
-- Why does $\bar\mu$ not show up in $\omega_{tgc}$?
+- Why does $\bar\mu$ not show up in $\omega_\text{tan}$?
 
 ## Compute the efficient tangency weight
 
@@ -539,13 +539,13 @@ In the CAPM: **market portfolio = tangency portfolio**
 
 ## Capital asset pricing model
 
-- **If** all investors share beliefs about $\Sigma$ and $\mu$ **and** can borrow and invest without limits  at $r_f$, **everybody** invests a fraction of her wealth in $\omega_\text{tgc}$ and in the risk-free rate (two mutual fund theorem) 
-- The tangency portfolio is the market portfolio $\omega_\text{m}$ and the individual weights of asset $i$ are just 
+- **If** all investors share beliefs about $\Sigma$ and $\mu$ **and** can borrow and invest without limits  at $r_f$, **everybody** invests a fraction of her wealth in $\omega_\text{tan}$ and in the risk-free rate (two mutual fund theorem)
+- The tangency portfolio is the market portfolio $\omega_\text{m}$ and the individual weights of asset $i$ are just
 $$
-\omega_\text{tgc, i} = \omega_\text{m, i} = \frac{P_iSCO_i}{\sum\limits_{j=1}^N P_jSCO_j}
+\omega_\text{tan, i} = \omega_\text{m, i} = \frac{P_iSCO_i}{\sum\limits_{j=1}^N P_jSCO_j}
 $$
 
- where $SCO_j$ is the number of shares outstanding of a stock $i$.
+ where $SCO_j$ is the number of shares outstanding of stock $j$.
 - To align the two results, the capital asset pricing model imposes constraints for the expected return of stock $i$
 
 $$
@@ -578,14 +578,14 @@ $$\beta_i = \frac{\sigma_{im}}{\sigma_m^2}$$
 
 - $\mu_m$: expected market returns
 - $\sigma_{im}$: covariance of asset $i$ with market
-- $\sigma_m$: market volatility
+- $\sigma_m^2$: market return variance
 
 ## The market factor 
 
-- The market risk premia is the market excess return $z_t = r_{m,t} - r_{f,t}$ 
+- The market risk premium is the market excess return $z_t = r_{m,t} - r_{f,t}$ 
 - We proxy for the market as the value-weighted portfolio of all US-based common stocks in CRSP 
 - This aggregation is already provided by Kenneth French on his homepage
-- Sharpe ratio is computed as $\frac{\hat{\mu_z}}{\hat{\sigma}_z}$
+- Sharpe ratio is computed as $\frac{\hat{\mu}_z}{\hat{\sigma}_z}$
 
 ```{r}
 #| echo: false
@@ -604,7 +604,7 @@ factors_ff_monthly |>
     footnote = "All values are annualized.")
 ```
 
-## Regression specification of stock
+## CAPM regression specification
 
 $$
 r_{i,t} - r_{f,t} = \alpha_i + \underbrace{\frac{Cov(r_i, r_m)}{\text{Var}(r_m)}}_{\beta_i} (r_{m,t} - r_{f,t}) + \varepsilon_{i, t}
@@ -613,7 +613,7 @@ $$
 - For the econometric analysis of the model, we assume that innovations $\varepsilon_{i, t}$ are independently and identically distributed (IID) through time and jointly multivariate normal
 - Expected returns are entirely determined by the price of risk (market risk premium) and the co-movement of asset $i$ with the market, $\beta_i$
 - To determine whether the portfolio/asset generates abnormal returns relative to the CAPM risk model, we evaluate whether the fitted intercept coefficient $\alpha_i$, which serves as the estimate of the average abnormal return per period, is statistically distinguishable from zero
-- \textcolor{red}{Discuss:} What are the questionable assumptions behind the baseline regression framework? 
+- [Discuss:]{style="color: red;"} What are the questionable assumptions behind the baseline regression framework?
 
 ## CAPM - Example with simple linear regression
 ```{r}
@@ -690,16 +690,16 @@ ggplot(apple_monthly, aes(x = mkt_excess, y = ret_excess)) +
 - Large parts of the academic literature focus on US stock markets
 - Stocks are listed on US exchanges (NYSE, AMEX, NASDAQ, and some smaller ones)
 - Extensive data on prices and trading activity is provided by the Center for Research in Security Prices (CRSP), maintained by the University of Chicago, Booth School of Business
-- Full sample ranges from December 1925 and is continuously updated
+- Full sample starts from December 1925 and is continuously updated
 -  A large part of the following computations is based on the textbook [*Empirical Asset Pricing: The Cross Section of Stock Returns*](https://www.wiley.com/en-dk/Empirical+Asset+Pricing:+The+Cross+Section+of+Stock+Returns-p-9781118095041) (available via library from reading list in Absalon)
 
 **How to get the data**
 
-- Note that in the textbook, we explain how to get CRSP data from the WRDS interface. This does not work on the KU campus! As a KU student you have access only to CRSP data 
+- Note that in the textbook, we explain how to get CRSP data from the WRDS interface. As a KU student, you do not have access to data beyond CRSP. You will receive the preprocessed data directly via Absalon
 
 ## Composition of the CRSP sample
 
-- Familiarize yourself with the cleaning steps in the exercise on the CRSP sample  (Chapter 7, Bali, Murray, Engle)
+- Familiarize yourself with the cleaning steps in the exercise on the CRSP sample  (Chapter 7, Bali, Engle, and Murray)
 - Monthly processed (!) data is available in `crsp_monthly.parquet` file in Absalon
 - Only contains US stocks (`shrcd%in%c(10,11)`)
 - Variable `exchcd` determines listing exchanges, `siccd` lists industry
@@ -820,7 +820,7 @@ portfolios
 :::{.panel-tabset}
 ## R 
 ```{r}
-#| output: false
+#| eval: false
 beta_portfolios <- beta |> # A stylized example 
   group_by(date) |>
   mutate(breakpoint = median(beta),
@@ -926,7 +926,7 @@ $N$ degrees of freedom in the numerator and $(T-N-1)$ degrees of freedom
 in the denominator
 - For more information, see Chapter 4 of *The Econometrics of Financial Markets*
 
-## Fama Mac-Beth regressions
+## Fama-MacBeth regressions
 - Instead of focusing on the mean-variance efficiency of the market portfolio, the CAPM also implies a linear relationship between expected returns and market betas which completely explains the cross-section of expected returns
 - Portfolio sorts already revealed that this may not be the case
 - These implications can also be tested using a cross-sectional regression methodology (Fama and MacBeth, 1973)
@@ -943,7 +943,7 @@ $$
 
 ## Unobservability of the market portfolio
 
-- Gibbons, Ross, and Shankens test focuses on the mean-variance efficiency of the market portfolio
+- Gibbons, Ross, and Shanken's test focuses on the mean-variance efficiency of the market portfolio
 - Most tests use a value- or equal-weighted basket of NYSE and AMEX stocks as the
 market proxy, whereas theoretically, the market portfolio contains all assets
 - Roll (1977) emphasizes that tests of the CAPM only reject the mean-variance efficiency of the proxy and that the model might not be rejected if the return on the true market portfolio were used
@@ -970,35 +970,29 @@ Let's move from theory to practice:
 1. What issues may occur and lead to deviations from the theoretically optimal portfolio?
 1. How do you evaluate your choices?
 
-<!-- - What is $\mu$? What is $\Sigma$? -->
-<!-- - Real-world constraints? Transaction costs, taxes, short-selling -->
-<!-- - Static framework versus dynamic -->
-<!-- - Appropriate asset universe? -->
-<!-- - Non-traded assets (human capital, VC) also exist  -->
-
 ## Portfolio backtesting
 
 - Portfolio backtesting is often perceived as a quest to find the best strategy or at least a solidly profitable one (downside: data snooping, **p**-hacking)
 - Out-of-sample test to analyze the (hypothetical) performance of a strategy
 
-### Procedure
+**Procedure**
 
-1. Fix investment horizon $N$, sample period $T$ and estimation window size $h$
-1. Out-of-sample: Never use information an investor would not have at the time of decision
+1. Fix sample period $T$, estimation window size $h$, and out-of-sample horizon $K = T - h$
+1. Respect the information constraint: never use data an investor would not have at the time of decision
 1. For each period, recompute $\hat\Sigma$ and $\hat\mu$ and reallocate wealth
 1. At the end of each period store the portfolio performance (e.g. return)
 1. Compare different strategies by evaluating the average out-of-sample performance
 
-![](figures/backtestoos.png)
+![Rolling estimation window of size $h$; portfolio weights are recomputed each period and performance is measured out-of-sample.](figures/backtestoos.png)
 
 ## Evaluation metrics
 
 - Typical metrics are the out-of-sample portfolio return (eventually risk-adjusted)
 $$
-\hat E(r^{pf}) = \frac{1}{T-h-1}\sum\limits_{t=h+1}^T r^{pf}_t
+\hat E(r^{pf}) = \frac{1}{T-h}\sum\limits_{t=h+1}^T r^{pf}_t
 $$
 
-Note that $r_t^{pf} = \omega_t'r_{t+1}$ where $\omega_t$ denotes the weights based on information available up to time $t$
+- Note that $r_t^{pf} = \omega_{t-1}'r_t$ where $\omega_{t-1}$ denotes weights formed using information available up to time $t-1$
 
 - Portfolio volatility $\sqrt{\hat\sigma^2\left(r^{pf}\right)}$
 - Later we will also consider transaction costs which depend on rebalancing from $\omega_{t-1}$ to $\omega_{t}$
@@ -1027,9 +1021,42 @@ for value in ["My", "first", "for", "loop"]:
 
 - Task: Develop pseudo-code for portfolio backtesting
 
+## Plug-in weights are highly unstable
+
+- Inverting a noisy $\hat\Sigma$ and scaling by $\hat\mu$ amplifies estimation errors into extreme weights
+- Rolling-window tangency portfolio weights can be extremely volatile, often well exceeding $\pm 100\%$
+- High turnover and extreme short positions are a direct consequence of unconstrained plug-in estimation
+- This motivates imposing constraints even at the cost of some theoretical inefficiency
+
+```{r}
+#| echo: false
+rolling_window <- 60
+returns_matrix <- returns_monthly |> pivot_wider(names_from = symbol, values_from = ret) |> dplyr::select(-date)
+weight_history <- map(seq(rolling_window + 1, nrow(returns_matrix)), function(t) {
+  window <- returns_matrix[(t-rolling_window):(t-1),] 
+  if (nrow(window) < 30) return(NULL)
+  mu_w  <- colMeans(window)
+  sig_w <- cov(window)
+  w_raw <- tryCatch(solve(sig_w) %*% mu_w, error = function(e) NULL)
+  if (is.null(w_raw) || abs(sum(w_raw)) < 1e-8) return(NULL)
+  tibble(symbol = names(mu_w), 
+         weight = as.vector(w_raw / sum(w_raw)),
+         date = t)
+}) |> compact() |> bind_rows()
+
+weight_history |>
+  ggplot(aes(x = date, y = weight, group = symbol)) +
+  geom_line(alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_y_continuous(labels = percent) +
+  labs(x = NULL, y = "Portfolio weight",
+       title = "Rolling tangency portfolio weights (60-month window)",
+       subtitle = "Each line is one Dow Jones stock; no short-sell constraint")
+```
+
 ## Parameter uncertainty
 
-- Consider a quadratic utility function with risk aversion $\gamma$ and certainty equivalent $$CE(\omega) = \omega'\mu - \frac{\gamma}{2} \omega'\Sigma \omega $$ 
+- Consider a quadratic utility function with certainty equivalent $$CE(\omega) = \omega'\mu - \frac{\gamma}{2} \omega'\Sigma \omega $$ where $\gamma > 0$ is the coefficient of risk aversion
 
 - Maximum expected utility portfolio (under the constraint $\iota'\omega = 1$) is equivalent to the framework above (minimize volatility for a given level of return $\bar\mu$) (the proof is an exercise: show that there is a bijective mapping from $\gamma$ to $\bar\mu$)
 - Optimal investment: efficient portfolio $\omega_\gamma(\mu, \Sigma)$
@@ -1042,14 +1069,103 @@ $$
 CEL = CE(\omega_\gamma(\mu, \Sigma)) - E\left(CE(\omega_\gamma(\hat\mu, \hat\Sigma))\right) \geq 0
 $$
 
-- Cho (2007) shows that the loss can be approximated by 
+- Writing $\hat\omega := \omega_\gamma(\hat\mu, \hat\Sigma)$ for the plug-in portfolio, the loss can be approximated by
 $$
-CEL \approx \frac{\gamma}{2}\times tr\left(\text{cov}(\omega_\gamma(\hat\mu,\hat\Sigma))\hat\Sigma\right)
+CEL \approx \frac{\gamma}{2}\times tr\left(\text{Var}(\hat\omega)\,\hat\Sigma\right)
 $$
 
-- Depends on the risk-aversion $\gamma$, the variance-covariance matrix of $\omega_\text{eff}(\hat\mu, \hat\Sigma)$ and the return covariance
-- Kan and Zhou (2007) and DeMiguel (2009) consider different portfolio weights that reduce the certainty equivalent loss
+- Depends on the risk-aversion $\gamma$, the $(N\times N)$ sampling variance of $\hat\omega$, and the return covariance
+- Kan and Zhou (2007) and DeMiguel, Garlappi, and Uppal (2009) consider different portfolio weights that reduce the certainty equivalent loss
 - It can be shown that the naive portfolio $\frac{1}{N}\iota$ can be optimal if estimation (and model) uncertainty is huge
+
+## Efficient frontier uncertainty: a bootstrap view
+
+- Plug-in estimates $\hat\mu$ and $\hat\Sigma$ imply a *single* frontier — but it is just one noisy estimate
+- Resample the return data and compute the efficient frontier for each bootstrap draw
+- Each bootstrapped frontier, when evaluated at the *true* (full-sample) parameters, shows how much the frontier moves with sampling variation
+- The in-sample frontier is the best-looking one by construction — a severe form of overfitting (Michaud, 1998)
+
+```{r}
+#| echo: false
+
+set.seed(2026)
+n_bootstrap <- 500
+T_obs <- nrow(returns_matrix)
+
+bootstrap_frontiers <- map(seq_len(n_bootstrap), function(b) {
+  idx   <- sample(T_obs, T_obs, replace = TRUE)
+  mu_b  <- colMeans(returns_matrix[idx, ])
+  sig_b <- cov(returns_matrix[idx, ])
+  sig_inv_b <- tryCatch(solve(sig_b), error = function(e) NULL)
+  if (is.null(sig_inv_b)) return(NULL)
+  iota_b <- rep(1, ncol(sig_b))
+  mvp_b  <- (sig_inv_b %*% iota_b) / as.numeric(t(iota_b) %*% sig_inv_b %*% iota_b)
+  C_b    <- as.numeric(t(iota_b) %*% sig_inv_b %*% iota_b)
+  D_b    <- as.numeric(t(iota_b) %*% sig_inv_b %*% mu_b)
+  E_b    <- as.numeric(t(mu_b)   %*% sig_inv_b %*% mu_b)
+  lam_b  <- 2 * (max(mu_b) - D_b / C_b) / (E_b - D_b^2 / C_b)
+  efp_b  <- as.vector(mvp_b + lam_b / 2 * (sig_inv_b %*% mu_b - D_b * mvp_b))
+  if(t(mvp_b)%*%mu_b>=t(efp_b)%*%mu_b) return(NULL)
+  tibble(a = seq(0, 1, by = 0.05), boot = b) |>
+    mutate(
+      omega = map(a, \(x) x * efp_b + (1 - x) * as.vector(mvp_b)),
+      mu    = map_dbl(omega, \(x) t(x) %*% assets$mu),
+      sigma = map_dbl(omega, \(x) sqrt(t(x) %*% sigma%*% x))
+    )
+}) |> bind_rows()
+
+ggplot(bootstrap_frontiers, aes(x = sigma, y = mu, group = boot)) +
+  geom_line(alpha = 0.15, color = "grey60") +
+  geom_line(data = efficient_frontier, aes(group = NULL),
+            color = "steelblue", linewidth = 1) +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent) +
+  labs(x = "Volatility", y = "Expected return",
+       title = "Bootstrap uncertainty of the efficient frontier",
+       subtitle = "Grey: bootstrap frontiers (evaluated at full-sample parameters) | Blue: in-sample frontier")
+```
+
+
+## The cost of plug-in estimation
+
+- Simulation: treat full-sample $(\mu_0, \Sigma_0)$ as the truth; simulate samples of length $T = 60$ months from $\mathcal{N}(\mu_0, \Sigma_0)$
+- For each simulation compute $\hat\omega_s^\text{tan}$ from plug-in estimates and evaluate its Sharpe ratio under the *true* parameters
+- Compare the distribution of $\widehat{\text{SR}}_s$ to the oracle $\text{SR}^* = \sqrt{\mu_0'\Sigma_0^{-1}\mu_0}$
+
+```{r}
+#| echo: false
+library(MASS)
+set.seed(42)
+n_sim     <- 2000
+T_sim     <- 60
+mu_0      <- assets$mu
+sig_0     <- sigma
+sr_oracle <- sqrt(as.numeric(t(mu_0) %*% solve(sig_0) %*% mu_0))
+
+sim_sr <- map_dbl(seq_len(n_sim), function(s) {
+  draws <- mvrnorm(T_sim, mu = mu_0, Sigma = sig_0)
+  mu_h  <- colMeans(draws)
+  sig_h <- cov(draws)
+  w_raw <- tryCatch(solve(sig_h) %*% mu_h, error = function(e) NULL)
+  if (is.null(w_raw) || abs(sum(w_raw)) < 1e-8) return(NA_real_)
+  w    <- w_raw / sum(w_raw)
+  mu_p <- as.numeric(t(w) %*% mu_0)
+  sd_p <- sqrt(as.numeric(t(w) %*% sig_0 %*% w))
+  if(mu_p<0) return(NA)
+  return(mu_p / sd_p)
+})
+
+tibble(sr = sim_sr) |> drop_na() |>
+  ggplot(aes(x = sr)) +
+  geom_histogram(fill = "steelblue", alpha = 0.8) +
+  geom_vline(xintercept = sr_oracle, color = "red", linewidth = 1.2, linetype = "dashed") +
+  annotate("text", x = sr_oracle, y = Inf, vjust = 2, hjust = 1.3,
+           label = sprintf("Oracle SR = %.2f", sr_oracle), color = "red") +
+  labs(x = "Out-of-sample Sharpe ratio", y = "Count",
+       title = sprintf("Plug-in tangency SR distribution (N = %d, T = %d months)",
+                       length(mu_0), T_sim),
+       subtitle = "Red line: oracle Sharpe ratio under true parameters")
+```
 
 ## How imposing restrictions helps
 
@@ -1062,7 +1178,7 @@ $$
 - Set $\tilde \Sigma = \Sigma - \left(\lambda\iota' + \iota \lambda'\right)$. Then, $\omega_\text{no short}$ is the (unconstrained) minimum variance portfolio for $\tilde\Sigma$ because:
 $$
 \begin{aligned}
-\tilde\Sigma \omega_\text{no short} &= \Sigma \omega_\text{no short}  -\lambda\underbrace{\iota'\omega_\text{no short}}_{= 1} + \iota \underbrace{\lambda'\omega_\text{no short}}_{= 0}\\
+\tilde\Sigma \omega_\text{no short} &= \Sigma \omega_\text{no short}  -\lambda\underbrace{\iota'\omega_\text{no short}}_{= 1} - \iota \underbrace{\lambda'\omega_\text{no short}}_{= 0}\\
 &= \Sigma \omega_\text{no short} - \lambda = \lambda^0\iota
 \end{aligned}
 $$
@@ -1096,3 +1212,66 @@ $$
 $$
 
 - For more complex optimization routines in R, [this link (optimization task view)](https://cran.r-project.org/web/views/Optimization.html) helps
+
+## plug-in vs. $1/N$ vs. constrained
+
+- Rolling-window backtest with estimation window $h = 60$ months over the full Dow Jones sample
+- For each period $t$, compute three sets of weights based on information up to $t$:
+  1. **Plug-in tangency**: unconstrained $\hat\omega^\text{tan}(\hat\mu_t, \hat\Sigma_t)$
+  2. **Naive**: equal-weight $\omega_\text{naive} = \frac{1}{N}\iota$
+  3. **Constrained**: short-sell constrained portfolio ($\omega_i \geq 0$) via quadratic programming
+- **Expected finding**: naive $1/N$ often beats unconstrained plug-in out-of-sample (DeMiguel, Garlappi, and Uppal, 2009) 
+
+```{r}
+#| echo: false
+library(quadprog)
+ret_wide <- returns_monthly |>
+  pivot_wider(names_from = symbol, values_from = ret) |> arrange(date)
+h_bt <- 60; gamma_bt <- 4
+N_bt <- ncol(ret_wide) - 1; T_bt <- nrow(ret_wide)
+
+backtest <- map(seq(h_bt + 1, T_bt - 1), function(t) {
+  window <- ret_wide[(t - h_bt):(t - 1), -1] |> as.matrix()
+  r_next <- as.numeric(ret_wide[t + 1, -1])
+  mu_h   <- colMeans(window, na.rm = TRUE)
+  sig_h  <- cov(window)
+  iota_h <- rep(1, N_bt)
+  w_naive  <- rep(1 / N_bt, N_bt)
+  w_raw    <- tryCatch(solve(sig_h) %*% mu_h, error = function(e) NULL)
+  w_tan_bt <- if (!is.null(w_raw) && abs(sum(w_raw)) > 1e-8)
+    as.vector(w_raw / sum(w_raw)) else w_naive
+  Dmat  <- sig_h + diag(1e-8, N_bt)
+  Amat  <- cbind(iota_h, diag(N_bt))
+  w_con <- tryCatch(
+    solve.QP(Dmat, mu_h / gamma_bt, Amat, c(1, rep(0, N_bt)), meq = 1)$solution,
+    error = function(e) w_naive
+  )
+  tibble(naive       = sum(w_naive   * r_next),
+         tangency    = sum(w_tan_bt  * r_next),
+         constrained = sum(w_con     * r_next))
+}) |> bind_rows()
+
+backtest |>
+  summarize(across(everything(), list(
+    Return = ~ 12 * mean(.),
+    Vol    = ~ sqrt(12) * sd(.),
+    Sharpe = ~ sqrt(12) * mean(.) / sd(.)
+  ), .names = "{.fn}_{.col}")) |>
+  pivot_longer(everything(), names_to = c("metric", "strategy"), names_sep = "_") |>
+  pivot_wider(names_from = strategy, values_from = value) |>
+  gt() |> fmt_number(columns = -metric, decimals = 2) |>
+  tab_header(title = "Out-of-sample performance comparison (h = 60 months)")
+```
+
+## Shrinkage: continuous regularization
+
+- Recall: the no-short solution implicitly uses $\tilde\Sigma = \Sigma - (\lambda\iota' + \iota\lambda')$
+- Shrinkage estimators achieve similar regularization continuously, without hard constraints
+- Ledoit and Wolf (2004): shrink $\hat\Sigma$ toward a structured target $F$
+$$
+\hat\Sigma_\delta = \delta F + (1-\delta)\hat\Sigma, \quad \delta \in [0,1]
+$$
+
+  - $F$: structured target (e.g., scaled identity, single-factor model, constant-correlation matrix)
+  - $\delta$: optimal shrinkage intensity chosen analytically or with cross-validation
+  - Better-conditioned $\hat\Sigma_\delta$ $\Rightarrow$ more stable weights $\Rightarrow$ lower out-of-sample losses

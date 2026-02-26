@@ -177,6 +177,57 @@ $$f_{t+1} = \alpha_f + a_F z_t + u_{f,t+1}, u_{f,t+1}\sim N\left (0,\Sigma_{FF}\
 1. Open/transparent. All the data and materials are available (as opposed to "available upon request") -- e.g., posted on GitHub
 1. Code is written in a way that can be readily understood 
 
+
+## Code & data sharing policies in top journals
+
+![](figures/welcome-code-sharing-timeline.png){width=90%}
+
+- **Code**: required for empirical work, simulations, numerical computations and experimental studies
+- **Data**: if actual data cannot be shared (due to legal/confidentiality issues), authors must provide pseudo-data
+
+## Reproducibility also important in industry
+
+- **Transparency**: clear code & data practices build client & regulatory trust
+- **Collaboration**: well-documented workflows enable smooth team handovers
+- **Maintainability**: clean processes simplify updates & scaling
+- **Faster Innovation**: reproducible processes accelerate testing & deployment
+
+## How empirical projects sometimes feel
+::::{.columns}
+
+::: {.column width="50%"}
+
+![](figures/welcome-kitchen-disorganized.png)
+
+:::
+::: {.column width="50%"}
+
+![&copy; Allison Horst](figures/welcome-kitchen-organized.png)
+
+:::
+::::
+
+## What can go wrong?
+
+:::::{.columns}
+
+::: {.column width="50%"}
+
+**Key takeaways**
+
+- Create a **separate project** for each data analysis
+- Save & organize scripts with **descriptive names**
+- Regularly **restart your session** to ensure all work is captured in scripts
+- Always use **relative paths**, never absolute paths
+- Avoid **manual steps** as much as possible
+
+:::
+::: {.column width="50%"}
+
+![Research code quality assesment of Harvard Dataverse between 2010-2020. Source: @trisovic2022](figures/projects-reproducibility-study.png){fig-align="center"}
+:::
+::::
+
 ## The replication crisis of finance
 
 ![](figures/welcome-replication-crisis-quotes.png){width=90%}
@@ -198,6 +249,14 @@ $$f_{t+1} = \alpha_f + a_F z_t + u_{f,t+1}, u_{f,t+1}\sim N\left (0,\Sigma_{FF}\
 - Do we really believe in 300+ risk factors?
 - Machine learning's aim: tame the factor zoo
 - See [this site](https://docs.google.com/spreadsheets/d/1mws1bU56ZAc8aK7Dvz696LknM0Vp4Rojc3n61q2-keY/edit#gid=0) for an updated sheet with published factors and some descriptions
+
+
+## Jensen et al (2023): Is there a replication crisis in Finance? 
+
+![](figures/kelly-2024-replication-crisis.png){width=90% fig-align="center"}
+
+- Replication is not just about running the same code — it depends critically on what question you ask and how you measure the answer
+- Bayesian reasoning lets you pool evidence across many related tests, which is both more principled and more powerful than applying ad hoc frequentist corrections
 
 ## Related: Non-standard errors
 
@@ -251,55 +310,5 @@ $$f_{t+1} = \alpha_f + a_F z_t + u_{f,t+1}, u_{f,t+1}\sim N\left (0,\Sigma_{FF}\
 ![](figures/efficient-portfolio-2.png)
 :::
 ::::
-:::
-::::
-
-## Code & data sharing policies in top journals
-
-![](figures/welcome-code-sharing-timeline.png){width=90%}
-
-- **Code**: required for empirical work, simulations, numerical computations and experimental studies
-- **Data**: if actual data cannot be shared (due to legal/confidentiality issues), authors must provide pseudo-data
-
-## Reproducibility also important in industry
-
-- **Transparency**: clear code & data practices build client & regulatory trust
-- **Collaboration**: well-documented workflows enable smooth team handovers
-- **Maintainability**: clean processes simplify updates & scaling
-- **Faster Innovation**: reproducible processes accelerate testing & deployment
-
-## How empirical projects sometimes feel
-::::{.columns}
-
-::: {.column width="50%"}
-
-![](figures/welcome-kitchen-disorganized.png)
-
-:::
-::: {.column width="50%"}
-
-![&copy; Allison Horst](figures/welcome-kitchen-organized.png)
-
-:::
-::::
-
-## What can go wrong?
-
-:::::{.columns}
-
-::: {.column width="50%"}
-
-**Key takeaways**
-
-- Create a **separate project** for each data analysis
-- Save & organize scripts with **descriptive names**
-- Regularly **restart your session** to ensure all work is captured in scripts
-- Always use **relative paths**, never absolute paths
-- Avoid **manual steps** as much as possible
-
-:::
-::: {.column width="50%"}
-
-![Research code quality assesment of Harvard Dataverse between 2010-2020. Source: @trisovic2022](figures/projects-reproducibility-study.png){fig-align="center"}
 :::
 ::::

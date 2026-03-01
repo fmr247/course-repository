@@ -8,11 +8,9 @@
 
 *The definition of "machine learning" is inchoate and is often context specific. We use the term to describe **(i)** a diverse collection of high-dimensional models for statistical prediction, combined with **(ii)** so-called "regularization" methods for model selection and mitigation of overfit and **(iii)** efficient algorithms for searching among a vast number of potential model specifications. (Gu et al. 2020)*
 
-- (i) select between small simplistic and complex ML models 
-- (i) Focus on predictive accuracy
-- (ii) selecting from multiple models in-sample leads to overfitting and poor out-of-sample performance
-- (ii) "regularization" methods for model selection
-- (iii) challenge in terms of computational effort
+- **(i)** A spectrum from simple linear models to complex architectures, all focused on predictive accuracy
+- **(ii)** Selecting among models in-sample leads to overfitting; regularization methods control model complexity
+- **(iii)** Searching over vast model spaces creates computational challenges requiring efficient algorithms
 
 :::
 ::: {.column width="20%"}
@@ -67,7 +65,7 @@ of measuring asset risk premiums
 1. Neural Networks
 1. Advanced case studies and applications
 
-**Your task: **
+**Your task:**
 
 - Return prediction for all CRSP-listed stocks 
 - Large set of macroeconomic predictors 
@@ -205,16 +203,16 @@ $$\hat\beta^\text{ridge} = \left(X'X + \lambda I\right)^{-1}X'y$$
 - Hyper parameter $\lambda$ $(c)$ controls the amount of regularization
 - Note that $\hat\beta^\text{ridge} = \hat\beta^\text{ols}$ for $\lambda = 0$ $(c\rightarrow \infty)$ and $\hat\beta^\text{ridge} \rightarrow 0$ for $\lambda\rightarrow \infty$ $(c\rightarrow 0)$
 - $\left(X'X + \lambda I\right)$ is non-singular even if $X'X$ is
-- *Note: * Usually, the intercept is not penalized (in practice: demean $y$)
+- *Note:* Usually, the intercept is not penalized (in practice: demean $y$)
 
-## Ridge Regression
+## Ridge Regression: Bias-Variance Properties
 - Let $D := X'X$
 $$
 \begin{aligned}
 \hat\beta^\text{ridge} &= \left(X'X + \lambda I\right)^{-1}X'y\\
 &= \left(D + \lambda I\right)^{-1}DD^{-1}X'y\\
 &= \left(D\left(I + \lambda D^{-1}\right)\right)^{-1}D\hat\beta^\text{ols}\\
-&= \left(I + \lambda D^{-1}\right)^{-1}D^{-1}D\hat\beta^\text{ols} = \left(I + \lambda D\right)^{-1}\hat\beta^\text{ols}
+&= \left(I + \lambda D^{-1}\right)^{-1}D^{-1}D\hat\beta^\text{ols} = \left(I + \lambda D^{-1}\right)^{-1}\hat\beta^\text{ols}
 \end{aligned}
 $$
 - $\hat\beta^\text{ridge}$ is biased because $E(\hat\beta^\text{ridge} - \beta) \neq 0$ for $\lambda\neq0$
@@ -255,9 +253,9 @@ ggplot(values, aes(x = lambda,
 
 ```
 
-## A case study
+## A case study: Predicting industry returns
 
-- Data for case study: macroeconomic predictors from for the paper "A Comprehensive Look at The Empirical Performance of Equity Premium Prediction" (Goyal, 2008)
+- Data for case study: macroeconomic predictors from the paper "A Comprehensive Look at The Empirical Performance of Equity Premium Prediction" (Goyal, 2008)
 - Monthly variables that have been suggested as good predictors for the equity premium: Dividend Price Ratio, Earnings Price Ratio, Stock Variance, Net Equity Expansion, Treasury Bill rate, and inflation
 - Monthly Fama-French 3-factor returns (market, small-minus-big, and high-minus-low book-to-market valuation sorts)
 - Monthly q-factor returns from Hou, Xue, and Zhang (2015)
@@ -341,7 +339,7 @@ $$\hat\beta^\text{Lasso} = \arg\min_\beta \left(Y - X\beta\right)'\left(Y - X\be
 $$\hat\beta_\lambda^\text{Lasso} = \arg\min_\beta \left(Y - X\beta\right)'\left(Y - X\beta\right) + \lambda\sum\limits_{k=1}^K|\beta_k|.$$
 - No closed-form solution but efficient algorithms (`glmnet`)
 - Also here: typically no penalization on the intercept term
-- **Exercise: ** Implement Lasso estimation on your own before using `glmnet`
+- **Exercise:** Implement Lasso estimation on your own before using `glmnet`
 
 ## Lasso with glmnet
 ```{r}
@@ -349,7 +347,8 @@ $$\hat\beta_\lambda^\text{Lasso} = \arg\min_\beta \left(Y - X\beta\right)'\left(
 fit_lasso <- glmnet(x, y, alpha = 1)
 ```
 
-```{r, echo = FALSE}
+```{r}
+#| echo: false
 broom::tidy(fit_lasso) |>
   filter(term != "(Intercept)") |>
   ggplot(aes(x=lambda, y = estimate, color = term)) +
@@ -439,14 +438,14 @@ $$
 
 ![](figures/cross_validation_k.png){width=50% fig-align="center"}
 
-## K-fold cross-validation
+## K-fold: Selecting the optimal $\lambda$
 
-- repeat the calculation above for each of these sets $b=1,\dots,K$ and obtain $\hat{\mbox{MSPE}}_1(\lambda),\dots, \hat{\mbox{MSPE}}_K(\lambda)$ and compute the average
+- Repeat the calculation above for each of these sets $b=1,\dots,K$ and obtain $\hat{\mbox{MSPE}}_1(\lambda),\dots, \hat{\mbox{MSPE}}_K(\lambda)$ and compute the average
 $$
 \hat{\mbox{MSPE}}(\lambda) = \frac{1}{K} \sum_{b=1}^K \hat{\mbox{MSPE}}_b(\lambda)
 $$
 
-- final step: select the $\lambda$ that minimizes the MS
+- final step: select the $\lambda$ that minimizes the MSPE
 
 Considerations for selecting $K$
 - Large values of $K$ are preferable. The training data better imitates the original dataset
@@ -471,7 +470,7 @@ $$
 - R and Python provide unparalleled workflows for ML: `tidymodels` and `scikit-learn`
 
 ```{mermaid}
-%%| echo: False
+%%| echo: false
 %%| fig-width: 3
 
 flowchart LR
@@ -501,7 +500,7 @@ split <- initial_time_split(
 
 - We start with a pre-processing plan (`recipe`)
 - We remove the column *month*, include all interaction terms between factors and macroeconomic predictors, and demean and scale each variable such that the standard deviation is one
-- Do not move on if it is unclear why we do not simply use `mutate`!
+- Understanding why we use recipes instead of `mutate` is key: recipes defer transformations until fitting, which avoids data leakage
 
 ```{r}
 rec <- recipe(ret_excess ~ ., data = training(split)) |>
@@ -513,7 +512,7 @@ rec <- recipe(ret_excess ~ ., data = training(split)) |>
 
 ## Scikit-learn recipes
 
-- Skicit-learn offers a similar range of preprocessing (`recipe`) steps
+- Scikit-learn offers a similar range of preprocessing (`recipe`) steps
 - Interaction terms have to be built manually
 
 ```{python}
@@ -542,7 +541,7 @@ lm_model <- linear_reg(
 
 - `lm_model` contains the definition of our model with all required information. 
 - `set_engine("glmnet")` indicates the API character of the `tidymodels` workflow: Under the hood, the package `glmnet` is doing the heavy lifting, while `linear_reg` provides a unified framework to collect the inputs
-- Why is this amazing? You can change the model (e.g., change mixture to get Ridge or call neural net instead of linear regression)!
+- Key advantage: you can swap the model (e.g., change `mixture` to get Ridge, or replace `linear_reg` with a neural network) without changing the rest of the workflow
 
 ```{r}
 lm_fit <- workflow() |>
@@ -552,7 +551,8 @@ lm_fit <- workflow() |>
 
 - `workflow` ends with combining everything necessary for the (serious) data science workflow: a recipe and a model. So now we are ready to use `fit.`
 
-```{r, eval = FALSE}
+```{r}
+#| eval: false
 lm_fit |> fit(data = training(split))
 ```
 
@@ -664,14 +664,9 @@ finder = finder.fit(
 
 ## Regression Trees
 
-- Regression trees have become a popular machine learning
-approach for incorporating multiway predictor interactions
-- Trees are fully nonparametric and possess a logic that departs markedly
-from traditional regressions
-- Trees are designed to find groups of observations that behave similarly 
-- A tree "grows" in a sequence of steps 
-- At each step, a new "branch" sorts the data leftover from the preceding step into bins based on one of the predictor variables
-- This sequential branching slices the space of predictors into rectangular partitions and approximates the unknown function $f(x_i)$ with the average value of the outcome variable within each partition
+- Regression trees are fully nonparametric and naturally incorporate multiway predictor interactions
+- A tree grows sequentially: at each step, a new branch splits observations into bins based on one predictor variable
+- This partitions the predictor space into rectangular regions and approximates $f(x_i)$ with the average outcome within each partition
 
 ## How do regression trees work?
 
@@ -688,11 +683,13 @@ $$
 $$
 
 - Note: We do not scale by $\#R_k(j, s)$
-- \textcolor{red}{Question: What are the hyperparameter decisions?}
+- **Discussion:** What are the hyperparameter decisions?
 
 ## Intuition with R
 - Also here: In the **exercises**, you will implement a regression tree on your own
-```{r, out.width='70%', fig.align='center'}
+```{r}
+#| out-width: "70%"
+#| fig-align: "center"
 library(rpart)
 model <- rpart(
   ret_excess ~ ., 
@@ -706,8 +703,7 @@ text(model, cex = 0.7)
 ## Random forests and Bagging
 - Single tree models suffer from high variance 
 - Pruning the tree helps reduce this variance
-- Bootstrap aggregating (Bagging) is one such approach (initially proposed by Breiman, 1996)
-- Bagging combines and averages multiple models. Averaging across multiple trees reduces the variability of any one tree and reduces overfitting, which improves predictive performance. Bagging follows three simple steps:
+- Bootstrap aggregating (Bagging, Breiman 1996) averages predictions across multiple trees, reducing variance and overfitting
 
 Growing a forest
 - Build $B$ decision trees $T_1, \ldots, T_B$ using the training sample
@@ -799,7 +795,10 @@ $$x_k^l = f\left(\theta^k_{0} + \sum\limits_{j = 1}^{N ^l}z_j\theta_{l,j}^k\righ
 - Typical activation functions are sigmoid ($f(x) = (1+e^{-x})^{-1}$) or ReLu ($f(x) = max(x, 0)$) 
 
 
-```{r, echo = FALSE, size = "tiny", out.width='50%', fig.align='center'}
+```{r}
+#| echo: false
+#| out-width: "50%"
+#| fig-align: "center"
 tab <- tibble(val = seq(-1.5, 1.5, 0.01)) |> 
   mutate(linear = 0 + val*0.2,
          ReLU = pmax(0, val),
@@ -821,7 +820,7 @@ tab |> pivot_longer(-val) |>
 
 Plenty of decisions 
 - Depth (number of hidden layers), Activation function, number of neurons, connections of units (dense or sparse), regularization to avoid overfitting, learning rate
-- There is no clear theoretical guidance on these choices but rather a large number of rules of thumbs 
+- There is no clear theoretical guidance on these choices but rather a large number of rules of thumb
 - Despite the computational challenges, implementation in R and Python is not tedious at all
 - Take a look [at this impressive visualization](https://playground.tensorflow.org/)
 - Due to the data transformation process that Neural Networks perform, they are susceptible to the individual scale of the feature values: Standardize the feature sets!
@@ -837,7 +836,7 @@ Plenty of decisions
 $$\Delta \vec{w} = r\cdot\left(\frac{\partial P}{\partial w_0},\frac{\partial P}{\partial w_1}, ... ,\frac{\partial P}{\partial w_q}\right)$$
 
 
-- For a thorough discussion of backpropagation, consider watching [this lecture]()
+- For a thorough discussion of backpropagation, consider watching [this lecture by 3Blue1Brown](https://www.youtube.com/watch?v=Ilg3gGewQ5U)
 
 ## Deep neural networks in R
 
@@ -846,7 +845,8 @@ $$\Delta \vec{w} = r\cdot\left(\frac{\partial P}{\partial w_0},\frac{\partial P}
 - Dropout and $L_2$ regularization is easy to include
 - Output is a single neuron with linear (default) activation function which can be used for predictions
 
-```{r, eval = FALSE}
+```{r}
+#| eval: false
 library(torch)
 library(brulee)
 
@@ -890,17 +890,16 @@ deepnnet_pipeline = Pipeline([
 
 ![](figures/gu_et_al_results_hyperparameter.jpg)
 
-## Results 
+## Results: Portfolio Performance
 
-- Portfolio sorts based on return prediction: "At the end of month $t$, we calculate one-month-ahead out-of-sample stock return predictions for each method. We then sort stocks into deciles based on each model's forecasts. We buy the highest expected return stocks (decile 10) and sell the lowest (decile 1). At the end of the month $t +  1$, we can calculate the realized returns of the portfolios (buy side and sell side
-respectively)"
+- Portfolio sorts based on return prediction: at the end of month $t$, compute one-month-ahead out-of-sample return predictions, sort stocks into deciles, and form a long-short portfolio (decile 10 minus decile 1)
 
 ![](figures/gu_et_al_results.jpg)
 
-## Results 
+## Results: Variable Importance
 
-- "for each method, we calculate the reduction in R2 from setting all values of a given predictor to zero within each training sample and average these into a single importance measure for each predictor. 
-- "all methods agree on a relatively small set of dominant predictive signals, [...] associated with price trends including return reversal and momentum [...], stock liquidity, stock volatility, and valuation ratios.
+- Variable importance: for each method, compute the reduction in $R^2$ from setting all values of a given predictor to zero
+- All methods agree on a small set of dominant predictive signals: price trends (reversal and momentum), stock liquidity, stock volatility, and valuation ratios
 
 ![](figures/gu_et_al_results_variable_importance.jpg){width=50% fig-align="center"}
 

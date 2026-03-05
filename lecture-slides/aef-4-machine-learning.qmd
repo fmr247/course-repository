@@ -1,5 +1,6 @@
-
-# Machine learning
+---
+subtitle: Machine learning
+---
 
 ## What is Machine learning?
 
@@ -33,7 +34,7 @@ Challenges (Israel, Kelly, Moskowitz, 2019)
 - Data potentially unstructured (company announcements)
 
 
-But...
+And...
 
 - Machine learning methods on their own do not identify fundamental associations among asset prices and conditioning variables
 
@@ -73,6 +74,19 @@ of measuring asset risk premiums
 - You should study Gu et al. (2020) in depth!
 - **Exercises:** Prepare the dataset as explained in Section 2.1 of Gu et al. (2020)
 
+## ML in Finance: Where are we now?
+
+- Gu et al. (2020) opened the door: large-scale evidence that ML methods outperform linear models for return prediction
+- Since then, the field has matured rapidly along several dimensions:
+
+1. **Imposing economic structure improves ML**: No-arbitrage and SDF restrictions often beat unconstrained prediction (Avramov, Cheng & Metzker 2023; Chen, Pelger & Zhu 2024)
+2. **Factor models meet ML**: Instrumented PCA (Kelly, Pruitt & Su 2019) and autoencoder-based latent factors (Gu, Kelly & Xiu 2021) bridge classical factor theory and flexible nonlinear models
+3. **Characteristic selection**: Nonparametric methods identify which firm characteristics actually matter (Freyberger, Neuhierl & Weber 2020; Bryzgalova, Pelger & Zhu 2024)
+4. **External validity**: Out-of-sample replication across markets and time periods remains a challenge (Leippold, Wang & Zhou 2022)
+5. **Transaction costs**: Many ML-selected characteristics become irrelevant after accounting for trading frictions (DeMiguel, Martin-Utrera, Nogales & Uppal 2020)
+
+- Key takeaway: The most promising approaches combine statistical flexibility with economic discipline
+
 # Bias-Variance Trade-off
 
 ## Unbiased, linear estimators 
@@ -92,20 +106,19 @@ Biased estimators?
 
 ## Shortcomings of OLS
 
-- Let $\beta$ denote the true regression coefficient and let $\hat\beta = \left(X'X\right)^{-1}X'y$, where $X$ is a $(T \times N)$ matrix of explanatory variables
+- Let $\beta$ denote the true regression coefficient and let $\hat\beta = \left(D\right)^{-1}X'y$, where $D:= X'X$, $X$ is a $(T \times N)$ matrix of explanatory variables
 - Then, the variance of the (unbiased) OLS estimate $\hat\beta$ is given by 
 $$
 \begin{aligned}
 Var\left(\hat\beta\right) &= E\left(\left(\hat\beta-\beta\right)\left(\hat\beta - \beta\right)'\right)\\
-&=E\left((X'X)^{-1}X'\varepsilon\varepsilon'X(X'X)^{-1}\right)\\
-&=\sigma_\varepsilon^2 E\left((X'X)^{-1}\right)
+&=\sigma_\varepsilon^2 E\left(D^{-1}\right)
 \end{aligned}
 $$
 
 where $\varepsilon$ is the vector of residuals and $\sigma_\varepsilon^2$ is the variance of the error term
-- When the predictors are highly correlated, the term $(X'X)^{-1}$ quickly explodes
-- Even worse: the OLS solution is not unique if $X$ is not of full rank
 
+- When the predictors are highly correlated, the term $D^{-1}$ quickly explodes
+- Even worse: the OLS solution is not unique if $X$ is not of full rank
 
 OLS in a prediction context
 
@@ -140,6 +153,7 @@ E(\hat{\varepsilon}^2)&=E((y-\hat{f}(\textbf{x}))^2)=E((f(\textbf{x})+\varepsilo
 
 ```{r}
 #| echo: false
+#| fig-align: center
 library(arrow)
 library(tidyverse)
 
@@ -178,6 +192,7 @@ ggplot(data |> mutate(time = as.Date(time)),
   coord_cartesian(
   ylim = c(min(data$returns), max(data$returns))
 ) +
+  scale_x_date(date_labels = "%Y-%m") +
   scale_y_continuous(labels = scales::percent) +
   geom_line(data = results, aes(color = as_factor(degree))) +
   annotate("rect",
@@ -196,20 +211,19 @@ ggplot(data |> mutate(time = as.Date(time)),
 
 ## Ridge Regression
 - Introduced by Hoerl and Kennard (1970a, 1970b)
-- Impose a penalty on the $L_2$ norm of the parameters $\hat\beta$ such that for $c\geq 0$ the estimation takes the form
+- Impose a penalty on the $L_2$ norm of the parameters $\hat\beta$ such that for $c\geq 0$ the estimator is 
 $$\hat\beta^\text{ridge} = \arg\min_\beta \left(y - X\beta\right)'\left(y - X\beta\right)\text{ s.t. } \beta'\beta \leq c$$
 - Standard optimization procedure yields
-$$\hat\beta^\text{ridge} = \left(X'X + \lambda I\right)^{-1}X'y$$
+$$\hat\beta^\text{ridge} = \left(D + \lambda I\right)^{-1}X'y$$
 - Hyper parameter $\lambda$ $(c)$ controls the amount of regularization
 - Note that $\hat\beta^\text{ridge} = \hat\beta^\text{ols}$ for $\lambda = 0$ $(c\rightarrow \infty)$ and $\hat\beta^\text{ridge} \rightarrow 0$ for $\lambda\rightarrow \infty$ $(c\rightarrow 0)$
-- $\left(X'X + \lambda I\right)$ is non-singular even if $X'X$ is
+- $\left(D + \lambda I\right)$ is non-singular even if $D$ is
 - *Note:* Usually, the intercept is not penalized (in practice: demean $y$)
 
 ## Ridge Regression: Bias-Variance Properties
-- Let $D := X'X$
 $$
 \begin{aligned}
-\hat\beta^\text{ridge} &= \left(X'X + \lambda I\right)^{-1}X'y\\
+\hat\beta^\text{ridge} &= \left(D + \lambda I\right)^{-1}X'y\\
 &= \left(D + \lambda I\right)^{-1}DD^{-1}X'y\\
 &= \left(D\left(I + \lambda D^{-1}\right)\right)^{-1}D\hat\beta^\text{ols}\\
 &= \left(I + \lambda D^{-1}\right)^{-1}D^{-1}D\hat\beta^\text{ols} = \left(I + \lambda D^{-1}\right)^{-1}\hat\beta^\text{ols}
@@ -448,10 +462,27 @@ $$
 - final step: select the $\lambda$ that minimizes the MSPE
 
 Considerations for selecting $K$
+
 - Large values of $K$ are preferable. The training data better imitates the original dataset
 - Larger values of $K$ will have much slower computation time
 - One way to improve the variance of our final estimate is to take more samples. To do this, pick $K$ sets of some size at random (not necessarily non-overlapping)
 - The bootstrap: at each fold, pick observations at random with replacement (which means the same observation can appear twice)
+
+## Cross-validation for time series
+
+- Standard K-fold randomly assigns observations to folds — this creates **look-ahead bias** for time series: the model trains on future data to predict the past
+- Financial returns exhibit serial correlation, volatility clustering, and regime changes — random splits destroy this temporal structure
+
+Two alternatives that respect the time ordering:
+
+1. **Expanding window**: training set grows over time, validation is always the next period
+   - Pro: uses all available history; Con: early and late models trained on very different sample sizes
+2. **Rolling window**: fixed-length training window slides forward
+   - Pro: adapts to structural change; Con: discards early data
+
+- Recall from Lecture 2: the same expanding vs. rolling distinction applies to portfolio backtesting
+- Additional refinement: **embargo periods** between training and validation sets to avoid information leakage through lagged predictors
+- In practice (as in the `tidymodels` example later): `time_series_cv()` and `TimeSeriesSplit()` handle this automatically
 
 ## Machine learning in one expression
 
@@ -464,6 +495,8 @@ $$
 $$
 
 2. estimate the optimal level of complexity $c$ using empirical tuning (cross-validation)
+
+- This regularization framework also applies to portfolio optimization — the mandatory assignment explores how constrained strategies mitigate estimation error
 
 ## ML workflows in R and Python
 
@@ -819,6 +852,7 @@ tab |> pivot_longer(-val) |>
 ## Neural networks: Architecture and Implementation
 
 Plenty of decisions 
+
 - Depth (number of hidden layers), Activation function, number of neurons, connections of units (dense or sparse), regularization to avoid overfitting, learning rate
 - There is no clear theoretical guidance on these choices but rather a large number of rules of thumb
 - Despite the computational challenges, implementation in R and Python is not tedious at all
@@ -881,6 +915,21 @@ deepnnet_pipeline = Pipeline([
 
 ```
 
+## Beyond feed-forward networks
+
+- The architectures above are standard feed-forward networks — modern financial ML increasingly uses specialized architectures:
+
+| Architecture | Strength | Financial application |
+|---|---|---|
+| Recurrent networks (LSTM, GRU) | Model sequential dependencies | Return prediction with time-varying parameters |
+| Autoencoders | Unsupervised latent factor discovery | Latent asset pricing factors (Gu, Kelly & Xiu 2021) |
+| Convolutional networks (CNN) | Exploit local spatial structure | Price chart pattern recognition (Jiang et al. 2022) |
+| Transformers / Attention | Capture long-range dependencies, process text | Earnings calls, SEC filings, news sentiment |
+| Generative adversarial networks (GAN) | Learn the data-generating process | SDF estimation (Chen, Pelger & Zhu 2024) |
+
+- Key trend: architectures that embed economic structure (no-arbitrage, factor models) outperform generic off-the-shelf networks
+- Practical implication: start simple (penalized linear models), add complexity only when justified by out-of-sample gains
+
 ## Empirical Asset Pricing via Machine Learning
 
 - Now you are equipped with everything needed to follow Gu et al. (2020): Methods, Data, Procedure
@@ -902,6 +951,61 @@ deepnnet_pipeline = Pipeline([
 - All methods agree on a small set of dominant predictive signals: price trends (reversal and momentum), stock liquidity, stock volatility, and valuation ratios
 
 ![](figures/gu_et_al_results_variable_importance.jpg){width=50% fig-align="center"}
+
+## Interpreting ML models
+
+- Neural networks and random forests are powerful but opaque — how do we understand *what* drives predictions?
+- Variable importance (as above) is one approach, but several complementary tools exist:
+
+| Method | Idea | Scope |
+|---|---|---|
+| Permutation importance | Shuffle one predictor, measure $R^2$ drop | Any model |
+| Partial dependence plots | Vary one predictor, average predictions over all others | Any model |
+| Shapley values (SHAP) | Game-theoretic attribution of each predictor's marginal contribution | Any model |
+| Lasso / Elastic Net | Built-in: zero coefficients = excluded predictors | Linear models |
+
+- In finance, interpretability is not just academic: regulators and portfolio managers need to understand *why* a model makes a particular prediction
+- Partial dependence plots are especially useful for detecting nonlinear predictor effects (e.g., the U-shaped relationship between size and expected returns)
+
+## Economic structure vs. pure prediction
+
+- Gu et al. (2020) let the data speak: minimize prediction error without imposing economic theory
+- Alternative: embed no-arbitrage restrictions directly into the ML objective
+
+| Approach | Example | Key idea |
+|---|---|---|
+| Pure prediction | Gu et al. (2020) | Minimize MSPE for $E(r_{i,t+1})$ |
+| SDF estimation | Chen, Pelger & Zhu (2024) | Learn the stochastic discount factor $m_{t+1}$ such that $E(m_{t+1} r_{i,t+1}) = 0$ |
+| Latent factors | Kelly, Pruitt & Su (2019); Gu, Kelly & Xiu (2021) | Estimate factor loadings as functions of characteristics |
+
+- Counterintuitive finding: imposing economic constraints often *improves* out-of-sample prediction (Avramov, Cheng & Metzker 2023)
+- Intuition: constraints act as regularization — reducing the effective parameter space, just like Ridge or Lasso
+- This mirrors the lesson from portfolio optimization: constrained strategies outperform unconstrained plug-in estimates when estimation error is large
+
+## Characteristic selection and the factor zoo
+
+- Recall from Lecture 3: hundreds of candidate predictors, many likely spurious
+- ML offers principled approaches to this selection problem:
+  - **Lasso** and **Elastic Net** perform automatic variable selection (this lecture)
+  - **Adaptive group Lasso** selects characteristics nonparametrically (Freyberger, Neuhierl & Weber 2020)
+  - **Decision-tree portfolios** construct managed portfolios directly from characteristics (Bryzgalova, Pelger & Zhu 2024)
+- But: many ML-selected signals lose significance after accounting for transaction costs (DeMiguel, Martin-Utrera, Nogales & Uppal 2020)
+- Bottom line: statistical significance $\neq$ economic significance
+
+## Out-of-sample replication and overfitting in practice
+
+- Recall from Lecture 3: many published factor results fail to replicate
+- ML compounds this problem: hyperparameter tuning introduces additional degrees of freedom for data snooping
+- Sources of overfitting specific to ML in finance:
+  - Choice of hyperparameter grid and cross-validation scheme
+  - Selection of predictor sets and sample periods
+  - Architecture decisions (number of layers, neurons, activation functions)
+- Leippold, Wang & Zhou (2022) replicate Gu et al. (2020) in the Chinese stock market — results vary substantially across markets and time periods
+- What makes the original Gu et al. (2020) results credible?
+  - Comprehensive horse race across many methods
+  - Consistent out-of-sample evaluation period
+  - Economic evaluation (portfolio sorts), not just statistical fit
+- Lesson: always evaluate ML models on *economic* criteria (Sharpe ratios, certainty equivalents), not just MSPE
 
 # Case studies
 

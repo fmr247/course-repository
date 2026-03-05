@@ -1,6 +1,7 @@
 renv/
 .venv/
 
+/submissions/
 /.quarto/
 **/*.quarto_ipynb
 data-r/beta.parquet
@@ -8,3 +9,6 @@ data-r/compustat.parquet
 data-r/crsp_monthly.parquet
 data-r/fisd.parquet
 mandatory-assignments/MA_1_portfolio_choice_2026.qmd
+.claude/settings.local.json
+data-r/stock_characteristics_monthly.parquet
+data-r/stock_characteristics_monthly.parquet

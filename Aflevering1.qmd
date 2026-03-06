@@ -15,9 +15,6 @@ format:
       - left=20mm
       - bottom=20mm
       - right=20mm
-    bibliography: mandatory-assignments/references.bib
-    cite-method: natbib
-    biblio-style: apalike  
     lang: en
     fontsize: 12pt
     highlight-style: github-light
@@ -262,6 +259,7 @@ tangency_hat = compute_tangency_portfolio(mu_hat, Sigma_hat)
 
 ```{python}
 #| label: fig-estimation-error-frontier
+#| fig-pos: H
 #| fig-cap: True and estimated efficient frontiers based on one simulated sample.
 
 true_tangency_point = pd.DataFrame({
@@ -331,6 +329,7 @@ frontier_comparison = pd.concat([frontier_true_plot] + frontier_list, ignore_ind
 
 ```{python}
 #| label: fig-frontier-sample-size
+#| fig-pos: H
 #| fig-cap: Estimated efficient frontiers for different sample sizes together with the true frontier.
 
 (
@@ -446,6 +445,7 @@ summary_ex6
 
 ```{python}
 #| label: fig-plugin-performance
+#| fig-pos: H
 #| fig-cap: True and plug-in tangency portfolio performance evaluated under the true parameters.
 
 plot_ex6 = pd.concat([
@@ -585,8 +585,8 @@ table_ex7
 
 ```{python}
 #| label: fig-strategy-comparison
+#| fig-pos: H
 #| fig-cap: Average true Sharpe ratio across portfolio strategies.
-#| echo: true
 
 (
     ggplot(summary_ex7, aes(x="T", y="mean_sharpe", linetype="strategy")) +

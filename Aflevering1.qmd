@@ -30,7 +30,16 @@ Quarto enables you to weave together content and executable code into a finished
 
 ## Exercise
 
-1. Download daily adjusted prices for all constituents of three stocks: AAPL, MSFT, and BA for the period from January 1st, 2000 until December 31st, 2025 from Yahoo!Finance. Explicitly include the code you use to download the data into your report. Compute the daily returns for each of the tickers.
+1. We download data for the S\&P 500 index (`^GSPC`) and the 13-week Treasury Bill rate (`^IRX`) from Yahoo! Finance for the period January 1, 2000 to February 28, 2026. Following the assignment instructions, the `^IRX` series is interpreted as an annualized yield in percent and converted into a monthly risk-free rate as
+$$
+r_{f,t} = (1 + IRX_t/100)^{1/12} - 1.
+$$
+The monthly excess market return is then computed as
+$$
+\tilde r_{m,t} = r_{m,t} - r_{f,t},
+$$
+where $r_{m,t}$ denotes the monthly return on the S\&P 500 index. :contentReference[oaicite:1]{index=1}
+
 
 ```{python}
 import pandas as pd

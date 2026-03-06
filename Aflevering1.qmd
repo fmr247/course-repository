@@ -344,7 +344,7 @@ frontier_comparison = pd.concat([frontier_true_plot] + frontier_list, ignore_ind
 )
 ```
 
-Figures @fig-estimation-error-frontier and @fig-frontier-sample-size illustrate how estimation error affects the shape of the efficient frontier. When the sample size is small relative to the number of assets, the estimated frontier can deviate substantially from the true frontier. As $T$ increases, the estimated frontier becomes more stable and approaches the true frontier.
+@fig-estimation-error-frontier and @fig-frontier-sample-size illustrate how estimation error affects the shape of the efficient frontier. When the sample size is small relative to the number of assets, the estimated frontier can deviate substantially from the true frontier. As $T$ increases, the estimated frontier becomes more stable and approaches the true frontier.
 
 ### Out-of-sample performance of the plug-in tangency portfolio
 
@@ -421,7 +421,8 @@ def simulate_plugin_tangency_performance(T, mu_true, Sigma_true, n_simulations=2
 ```
 
 ```{python}
-#| label: ex6-run
+#| label: tbl-plugin-performance
+#| tbl-cap: Average Sharpe ratios of the true and plug-in tangency portfolios across sample sizes.
 #| cache: true
 
 sample_sizes = [60, 120, 240, 480]
@@ -466,11 +467,11 @@ plot_ex6 = pd.concat([
 )
 ```
 
-Table @tbl-plugin-performance reports the average Sharpe ratios of the true tangency portfolio and the plug-in tangency portfolio for different sample sizes.
+@tbl-plugin-performance reports the average Sharpe ratios of the true tangency portfolio and the plug-in tangency portfolio for different sample sizes.
 
 The results show that the plug-in tangency portfolio performs substantially worse than the true tangency portfolio when $T$ is small. As $T$ increases, the plug-in Sharpe ratio improves because the estimates $\hat{\mu}$ and $\hat{\Sigma}$ become more accurate.
 
-Figure @fig-plugin-performance illustrates the same pattern. The performance of the plug-in tangency portfolio increases with the sample size, but remains below the performance of the true tangency portfolio.
+@fig-plugin-performance illustrates the same pattern. The performance of the plug-in tangency portfolio increases with the sample size, but remains below the performance of the true tangency portfolio.
 
 
 ### Alternative portfolio strategies

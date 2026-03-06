@@ -49,42 +49,80 @@ from plotnine import *
 from mizani.formatters import percent_format
 ```
 
-```{python} 
+```{python}
 #| echo: true
 #| cache: true
 
-ticker = ["AAPL", "MSFT", "BA"]
+ticker = ["^GSPC", "^IRX"]
+
 prices = tf.download_data(
-  domain="stock_prices", 
-  symbols=ticker,
-  start_date="2000-01-01", 
-  end_date="2025-12-31"
+    domain="stock_prices",
+    symbols=ticker,
+    start_date="2000-01-01",
+    end_date="2026-02-28"
 )
 
-returns = (prices
-  .assign(ret=lambda x: x.groupby("symbol")["adjusted_close"].pct_change())
-  .get(["symbol", "date", "ret"])
-  .dropna(subset="ret")
+prices["date"] = pd.to_datetime(prices["date"])
+
+gspc = (
+    prices
+    .query('symbol == "^GSPC"')
+    .sort_values("date")
+    .set_index("date")
+    .resample("ME")
+    .last()
+    .assign(r_m=lambda x: x["adjusted_close"].pct_change())
+    .reset_index()[["date", "r_m"]]
 )
+
+irx = (
+    prices
+    .query('symbol == "^IRX"')
+    .sort_values("date")
+    .set_index("date")
+    .resample("ME")
+    .last()
+    .assign(r_f=lambda x: (1 + x["adjusted_close"] / 100) ** (1 / 12) - 1)
+    .reset_index()[["date", "r_f"]]
+)
+
+returns = (
+    gspc
+    .merge(irx, on="date", how="inner")
+    .assign(r_tilde_m=lambda x: x["r_m"] - x["r_f"])
+    .dropna()
+)
+
+Mean_return = returns["r_tilde_m"].mean()
+Variance_return = returns["r_tilde_m"].var(ddof=1)
+
+Mean_ann_return = 12 * Mean_return
+Variance_ann_return = 12 * Variance_return
+
+summary = pd.DataFrame({
+    "Metric": ["Mean_return", "Variance_return", "Mean_ann_return", "Variance_ann_return"],
+    "Value": [Mean_return, Variance_return, Mean_ann_return, Variance_ann_return]
+})
+
+summary
 ```
+
 
 1. Visualize the distribution of the daily returns.
 
 ```{python}
-#| label: fig-return-distribution
-#| fig-cap: Distribution of daily stock returns. 
+#| echo: true
+#| cache: true
+np.random.seed(2026)
+N = 50
 
-returns_figure = (
-  ggplot(returns, aes(x="ret", fill="symbol")) +
-  geom_histogram(bins=100) +
-  labs(x="", y="",
-       fill ="") +
-  facet_wrap("symbol") +
-  scale_x_continuous(labels=percent_format()) +
-  theme_bw() +
-  theme(legend_position = "none")
-)
-returns_figure.draw()
+beta = np.random.uniform(0.5, 1.5, N)
+sigma_epsilon = np.random.uniform(0.10 / np.sqrt(12), 0.30 / np.sqrt(12), N)
+
+mu = beta * Mean_return
+Sigma = Variance_return * np.outer(beta, beta) + np.diag(sigma_epsilon**2)
+
+mu[:5], Sigma[:5, :5]
 ```
 
 @fig-return-distribution shows the distribution of daily returns for the three assets.

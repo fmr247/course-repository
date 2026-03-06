@@ -352,3 +352,260 @@ frontier_comparison = pd.concat([frontier_true_plot] + frontier_list, ignore_ind
 ```
 Figures @fig-estimation-error-frontier and @fig-frontier-sample-size show that estimation error can materially distort the shape of the efficient frontier. The distortion is more severe when the sample size is small relative to the number of assets. As $T$ increases, the estimated frontier moves closer to the true frontier.
 
+### Out-of-sample performance of the plug-in tangency portfolio
+
+To evaluate the impact of estimation error, we compare the true tangency portfolio with the plug-in tangency portfolio. The true tangency portfolio is constructed using the true parameters $\mu$ and $\Sigma$, while the plug-in tangency portfolio is based on the estimated sample moments $\hat{\mu}$ and $\hat{\Sigma}$.
+
+The tangency portfolio weights are given by
+
+$$
+w_{tan} = \frac{\Sigma^{-1}\mu}{\iota^{\top}\Sigma^{-1}\mu},
+$$
+
+where $\iota$ denotes a vector of ones.
+
+The Sharpe ratio of a portfolio with weights $w$ is defined as
+
+$$
+SR = \frac{w^{\top}\mu}{\sqrt{w^{\top}\Sigma w}}.
+$$
+
+To analyze the effect of estimation error, asset returns are simulated from the multivariate normal distribution
+
+$$
+r_t \sim \mathcal{N}(\mu,\Sigma).
+$$
+
+For each simulated sample with size $T$, the sample estimates $\hat{\mu}$ and $\hat{\Sigma}$ are computed and used to construct the plug-in tangency portfolio. The resulting portfolio is then evaluated using the true parameters $\mu$ and $\Sigma$.
+
+
+```{python}
+#| label: ex6-helper-functions
+#| cache: true
+
+def evaluate_portfolio(weights, mu_true, Sigma_true):
+    portfolio_mean = weights @ mu_true
+    portfolio_variance = weights @ Sigma_true @ weights
+    portfolio_volatility = np.sqrt(portfolio_variance)
+    portfolio_sharpe = portfolio_mean / portfolio_volatility
+
+    return {
+        "mean": portfolio_mean,
+        "variance": portfolio_variance,
+        "volatility": portfolio_volatility,
+        "sharpe": portfolio_sharpe
+    }
+```
+
+```{python}
+#| label: ex6-plugin-performance
+#| cache: true
+
+def simulate_plugin_tangency_performance(T, mu_true, Sigma_true, n_simulations=200):
+    true_tangency = compute_tangency_portfolio(mu_true, Sigma_true)
+
+    results = []
+
+    for simulation in range(n_simulations):
+        simulated_returns = simulate_returns(T, mu_true, Sigma_true)
+
+        mu_hat = simulated_returns.mean(axis=0)
+        Sigma_hat = np.cov(simulated_returns, rowvar=False, ddof=1)
+
+        plugin_tangency = compute_tangency_portfolio(mu_hat, Sigma_hat)
+
+        true_performance = evaluate_portfolio(true_tangency["weights"], mu_true, Sigma_true)
+        plugin_performance = evaluate_portfolio(plugin_tangency["weights"], mu_true, Sigma_true)
+
+        results.append({
+            "T": T,
+            "true_sharpe": true_performance["sharpe"],
+            "plugin_sharpe": plugin_performance["sharpe"]
+        })
+
+    return pd.DataFrame(results)
+```
+
+```{python}
+#| label: ex6-run
+#| cache: true
+
+sample_sizes = [60, 120, 240, 480]
+
+results_ex6 = pd.concat(
+    [simulate_plugin_tangency_performance(T, mu, Sigma, n_simulations=200) for T in sample_sizes],
+    ignore_index=True
+)
+
+summary_ex6 = (
+    results_ex6
+    .groupby("T", as_index=False)
+    .agg(
+        true_sharpe=("true_sharpe", "mean"),
+        plugin_sharpe=("plugin_sharpe", "mean")
+    )
+)
+
+summary_ex6
+```
+
+```{python}
+#| label: fig-plugin-performance
+#| fig-cap: True and plug-in tangency portfolio performance evaluated under the true parameters.
+
+plot_ex6 = pd.concat([
+    summary_ex6[["T", "true_sharpe"]].rename(columns={"true_sharpe": "sharpe"}).assign(type="True tangency portfolio"),
+    summary_ex6[["T", "plugin_sharpe"]].rename(columns={"plugin_sharpe": "sharpe"}).assign(type="Plug-in tangency portfolio")
+], ignore_index=True)
+
+(
+    ggplot(plot_ex6, aes(x="T", y="sharpe", linetype="type")) +
+    geom_line() +
+    geom_point() +
+    labs(
+        x="Sample size T",
+        y="Average true Sharpe ratio",
+        linetype=""
+    ) +
+    theme_bw()
+)
+```
+
+Table @tbl-plugin-performance reports the average Sharpe ratios of the true tangency portfolio and the plug-in tangency portfolio for different sample sizes.
+
+The results show that the plug-in tangency portfolio performs substantially worse than the true tangency portfolio when $T$ is small. As $T$ increases, the plug-in Sharpe ratio improves because the estimates $\hat{\mu}$ and $\hat{\Sigma}$ become more accurate.
+
+Figure @fig-plugin-performance illustrates the same pattern. The performance of the plug-in tangency portfolio increases with the sample size, but remains below the performance of the true tangency portfolio.
+
+
+### Alternative portfolio strategies
+
+To study the robustness of different portfolio construction methods, we compare the plug-in tangency portfolio with several alternative strategies.
+
+The first benchmark is the equally weighted portfolio, defined as
+
+$$
+w_{EW} = \frac{1}{N}\iota.
+$$
+
+This portfolio assigns equal weights to all assets and does not depend on estimated parameters.
+
+The second strategy is the global minimum variance portfolio, which minimizes portfolio variance subject to the weights summing to one. The weights are given by
+
+$$
+w_{GMV} = \frac{\Sigma^{-1}\iota}{\iota^{\top}\Sigma^{-1}\iota}.
+$$
+
+This strategy depends only on the covariance matrix and does not require estimates of expected returns.
+
+The third strategy is the inverse-volatility portfolio, where assets with higher volatility receive lower weights. The weights are defined as
+
+$$
+w_i = \frac{1/\sigma_i}{\sum_{j=1}^{N} 1/\sigma_j}.
+$$
+
+
+```{python}
+#| label: ex7-strategies
+#| cache: true
+
+def equal_weight_portfolio(n_assets):
+    return np.ones(n_assets) / n_assets
+
+
+def compute_global_minimum_variance_portfolio(Sigma):
+    ones = np.ones(Sigma.shape[0])
+    inv_Sigma = np.linalg.inv(Sigma)
+
+    weights = inv_Sigma @ ones
+    weights = weights / np.sum(weights)
+
+    return weights
+
+
+def inverse_volatility_portfolio(Sigma):
+    asset_volatility = np.sqrt(np.diag(Sigma))
+    inverse_volatility = 1 / asset_volatility
+    weights = inverse_volatility / np.sum(inverse_volatility)
+    return weights
+```
+
+```{python}
+#| label: ex7-simulation
+#| cache: true
+
+def simulate_strategy_performance(T, mu_true, Sigma_true, n_simulations=200):
+    n_assets = len(mu_true)
+    results = []
+
+    for simulation in range(n_simulations):
+        simulated_returns = simulate_returns(T, mu_true, Sigma_true)
+
+        mu_hat = simulated_returns.mean(axis=0)
+        Sigma_hat = np.cov(simulated_returns, rowvar=False, ddof=1)
+
+        strategy_weights = {
+            "Equally weighted": equal_weight_portfolio(n_assets),
+            "Plug-in tangency": compute_tangency_portfolio(mu_hat, Sigma_hat)["weights"],
+            "Global minimum variance": compute_global_minimum_variance_portfolio(Sigma_hat),
+            "Inverse volatility": inverse_volatility_portfolio(Sigma_hat)
+        }
+
+        for strategy, weights in strategy_weights.items():
+            performance = evaluate_portfolio(weights, mu_true, Sigma_true)
+
+            results.append({
+                "T": T,
+                "strategy": strategy,
+                "sharpe": performance["sharpe"]
+            })
+
+    return pd.DataFrame(results)
+```
+
+```{python}
+#| label: tbl-strategy-performance
+#| tbl-cap: Average true Sharpe ratios across portfolio strategies and sample sizes.
+#| cache: true
+
+results_ex7 = pd.concat(
+    [simulate_strategy_performance(T, mu, Sigma, n_simulations=200) for T in sample_sizes],
+    ignore_index=True
+)
+
+summary_ex7 = (
+    results_ex7
+    .groupby(["T", "strategy"], as_index=False)
+    .agg(mean_sharpe=("sharpe", "mean"))
+)
+
+table_ex7 = (
+    summary_ex7
+    .pivot(index="T", columns="strategy", values="mean_sharpe")
+    .round(4)
+)
+
+table_ex7
+```
+
+```{python}
+#| label: fig-strategy-comparison
+#| fig-cap: Average true Sharpe ratio across portfolio strategies.
+#| echo: true
+
+(
+    ggplot(summary_ex7, aes(x="T", y="mean_sharpe", linetype="strategy")) +
+    geom_line() +
+    geom_point() +
+    labs(
+        x="Sample size T",
+        y="Average true Sharpe ratio",
+        linetype=""
+    ) +
+    theme_bw()
+)
+```
+
+Figure @fig-strategy-comparison compares the average Sharpe ratios of the different strategies across sample sizes.
+
+The results show that the plug-in tangency portfolio is the most sensitive to estimation error. In contrast, the equally weighted and inverse-volatility portfolios perform more consistently across different sample sizes because they rely less on estimated parameters. As the sample size increases, the performance of the plug-in tangency portfolio improves and gradually approaches the true optimum.

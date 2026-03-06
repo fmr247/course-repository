@@ -23,22 +23,7 @@ format:
     highlight-style: github-light
 ---
 
-
-## Quarto - a framework for reproducible research
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>. When you click the **Preview** button in Positron or type `quarto render` in the terminal a .pdf document will be generated that includes both content and the output of embedded code. The template below can be used to submit your answers for the mandatory assignment. Within the template you find all typical issues. By default, code is omitted in the output (can be changed with `echo: true` in line 6). Formatting is done using markdown (e.g., check out how to use \# to define sections and subsections or how to generate bold text). Footnotes and citations are easy. You can also include math notation using LaTeX style. The template contains inline code execution (e.g. to automatically return the ticker of the asset with the highest Sharpe ratio) and shows how to embed figures into the document.
-
 ## Exercise
-
-We download monthly data for the S\&P 500 index (`^GSPC`) and the 13-week Treasury Bill rate (`^IRX`) from Yahoo! Finance for the period January 1, 2000 to February 28, 2026. The `^IRX` series is an annualized yield in percent, so it is converted into a monthly risk-free rate as
-$$
-r_{f,t} = (1 + IRX_t/100)^{1/12} - 1.
-$$
-Monthly excess market returns are then computed as
-$$
-\tilde r_{m,t} = r_{m,t} - r_{f,t},
-$$
-where $r_{m,t}$ denotes the monthly return on the S\&P 500 index. We use the estimated monthly mean excess return $\mu_m$ and monthly variance $\sigma_m^2$ to calibrate the synthetic asset universe used in the remainder of the assignment.
 
 ```{python}
 #| label: setup
@@ -52,11 +37,20 @@ from plotnine import ggplot, aes, geom_line, geom_point, labs, theme_bw
 np.random.seed(2026)
 ```
 
-1. Market excess returns
+### Market excess returns
+We download monthly data for the S\&P 500 index (`^GSPC`) and the 13-week Treasury Bill rate (`^IRX`) from Yahoo! Finance for the period January 1, 2000 to February 28, 2026. The `^IRX` series is an annualized yield in percent, so it is converted into a monthly risk-free rate as
+$$
+r_{f,t} = (1 + IRX_t/100)^{1/12} - 1.
+$$
+Monthly excess market returns are then computed as
+$$
+\tilde r_{m,t} = r_{m,t} - r_{f,t},
+$$
+where $r_{m,t}$ denotes the monthly return on the S\&P 500 index. We use the estimated monthly mean excess return $\mu_m$ and monthly variance $\sigma_m^2$ to calibrate the synthetic asset universe used in the remainder of the assignment.
+
 
 ```{python}
 #| label: ex1-market-data
-#| echo: true
 #| cache: true
 
 ticker = ["^GSPC", "^IRX"]
@@ -108,16 +102,25 @@ summary_ex1 = pd.DataFrame({
     "metric": ["mu_m", "sigma2_m", "mu_m_annualized", "sigma2_m_annualized"],
     "value": [mu_m, sigma2_m, mu_m_annualized, sigma2_m_annualized]
 })
-
-summary_ex1
+```
+```{python}
+#| label: tbl-market-moments
+#| tbl-cap: Estimated monthly and annualized market moments
+#| cache: true
+summary_ex1.round(4)
 ```
 
-Table 1 reports the estimated monthly mean excess market return and variance, together with their annualized counterparts.
+Table @tbl-market-moments reports the estimated monthly mean excess market return and variance, together with their annualized counterparts. The estimated monthly mean excess return is approximately 0.45\%, while the annualized mean excess return is approximately 5.45\%. The corresponding annualized variance is approximately 0.0228.
 
-2. Synthetic asset universe
+### Synthetic asset universe
+Next, we construct a universe of $N = 50$ synthetic assets following the single-factor model
+$$
+\tilde r_{i,t} = \beta_i \tilde r_{m,t} + \varepsilon_{i,t}.
+$$
+The factor loadings $\beta_i$ and idiosyncratic volatilities $\sigma_{\varepsilon,i}$ are drawn from the distributions specified in the assignment. Using the estimated market moments from Exercise 1, we construct the true mean vector $\mu$ and covariance matrix $\Sigma$, which are treated as the true parameters throughout the remainder of the assignment.
+
 ```{python}
 #| label: ex2-synthetic-assets
-#| echo: true
 #| cache: true
 
 N = 50
@@ -127,17 +130,13 @@ sigma_epsilon = np.random.uniform(0.10 / np.sqrt(12), 0.30 / np.sqrt(12), N)
 
 mu = beta * mu_m
 Sigma = sigma2_m * np.outer(beta, beta) + np.diag(sigma_epsilon**2)
-
-mu[:5], Sigma[:5, :5]
 ```
 
-3. Functions for the efficient frontier and tangency portfolio
-
-We next implement functions to compute the tangency portfolio and the mean-variance efficient frontier for a given mean vector and covariance matrix.
+### Functions for the efficient frontier and tangency portfolio
+We next implement functions to compute the tangency portfolio and the mean-variance efficient frontier for a given mean vector $\mu$ and covariance matrix $\Sigma$. The tangency portfolio maximizes the Sharpe ratio, while the efficient frontier contains the portfolios with minimum variance for a given target return.
 
 ```{python}
 #| label: ex3-frontier-functions
-#| echo: true
 #| cache: true
 
 def compute_tangency_portfolio(mu, Sigma):
@@ -190,13 +189,11 @@ def compute_efficient_frontier(mu, Sigma, n_points=100):
     return pd.DataFrame(frontier)
 ```
 
-4. Efficient frontier based on the true parameters
-
-Using the true parameter values $\mu$ and $\Sigma$, we compute and visualize the efficient frontier and the tangency portfolio.
+### Efficient frontier based on the true parameters
+Using the true parameter values $\mu$ and $\Sigma$, we compute the mean-variance efficient frontier and the corresponding tangency portfolio. The resulting frontier describes the best attainable risk-return combinations under the true data-generating process.
 
 ```{python}
 #| label: ex4-true-frontier-data
-#| echo: true
 #| cache: true
 
 frontier_true = compute_efficient_frontier(mu, Sigma, n_points=100)
@@ -206,8 +203,6 @@ tangency_true = compute_tangency_portfolio(mu, Sigma)
 ```{python}
 #| label: fig-true-efficient-frontier
 #| fig-cap: Mean-variance efficient frontier and tangency portfolio based on the true parameters.
-#| echo: true
-
 tangency_point = pd.DataFrame({
     "volatility": [tangency_true["volatility"]],
     "target_return": [tangency_true["mean"]]
@@ -228,15 +223,15 @@ tangency_point = pd.DataFrame({
     theme_bw()
 )
 ```
-@fig-true-efficient-frontier shows the mean-variance efficient frontier implied by the true parameter values. The marked point denotes the tangency portfolio.
 
-5. Estimation error and the shape of the efficient frontier
+Figure @fig-true-efficient-frontier shows the efficient frontier implied by the true parameter values. The marked point denotes the tangency portfolio, which achieves the highest Sharpe ratio among all feasible portfolios.
 
-To study estimation error, we simulate asset returns from the true data-generating process and then replace the true moments by their sample counterparts $\hat{\mu}$ and $\hat{\Sigma}$.
+
+### Estimation error and the shape of the efficient frontier
+To study estimation error, we simulate asset returns from the true data-generating process and estimate the mean vector $\hat{\mu}$ and covariance matrix $\hat{\Sigma}$ from the simulated sample. These sample estimates are then used to construct a plug-in efficient frontier.
 
 ```{python}
 #| label: ex5-simulate-returns
-#| echo: true
 #| cache: true
 
 def simulate_returns(periods, expected_returns, covariance_matrix):
@@ -247,11 +242,11 @@ def simulate_returns(periods, expected_returns, covariance_matrix):
     )
     return returns
 ```
-We first compare the true frontier to the estimated frontier based on one simulated sample with $T=120$ monthly observations.
+
+We first compare the true efficient frontier with the frontier estimated from a single simulated sample with $T = 120$ monthly observations.
 
 ```{python}
 #| label: ex5-one-simulation
-#| echo: true
 #| cache: true
 
 T = 120
@@ -268,7 +263,6 @@ tangency_hat = compute_tangency_portfolio(mu_hat, Sigma_hat)
 ```{python}
 #| label: fig-estimation-error-frontier
 #| fig-cap: True and estimated efficient frontiers based on one simulated sample.
-#| echo: true
 
 true_tangency_point = pd.DataFrame({
     "volatility": [tangency_true["volatility"]],
@@ -308,10 +302,11 @@ tangency_points = pd.concat([true_tangency_point, estimated_tangency_point], ign
     theme_bw()
 )
 ```
+
 To study how sample size affects estimation error, we repeat the simulation for different values of $T$.
+
 ```{python}
 #| label: ex5-frontiers-by-sample-size
-#| echo: true
 #| cache: true
 
 sample_sizes = [60, 120, 240]
@@ -337,7 +332,6 @@ frontier_comparison = pd.concat([frontier_true_plot] + frontier_list, ignore_ind
 ```{python}
 #| label: fig-frontier-sample-size
 #| fig-cap: Estimated efficient frontiers for different sample sizes together with the true frontier.
-#| echo: true
 
 (
     ggplot(frontier_comparison, aes(x="volatility", y="target_return", linetype="sample")) +
@@ -350,5 +344,6 @@ frontier_comparison = pd.concat([frontier_true_plot] + frontier_list, ignore_ind
     theme_bw()
 )
 ```
-Figures @fig-estimation-error-frontier and @fig-frontier-sample-size show that estimation error can materially distort the shape of the efficient frontier. The distortion is more severe when the sample size is small relative to the number of assets. As $T$ increases, the estimated frontier moves closer to the true frontier.
+
+Figures @fig-estimation-error-frontier and @fig-frontier-sample-size illustrate how estimation error affects the shape of the efficient frontier. When the sample size is small relative to the number of assets, the estimated frontier can deviate substantially from the true frontier. As $T$ increases, the estimated frontier becomes more stable and approaches the true frontier.
 

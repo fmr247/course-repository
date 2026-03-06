@@ -15,7 +15,7 @@ format:
       - left=20mm
       - bottom=20mm
       - right=20mm
-    bibliography: references.bib
+    bibliography: mandatory-assignments/references.bib
     cite-method: natbib
     biblio-style: apalike  
     lang: en

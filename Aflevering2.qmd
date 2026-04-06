@@ -42,10 +42,10 @@ from mizani.formatters import percent_format
 #| echo: true
 #| cache: true
 
-#| df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+ df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
 
 # Reading in the file
-df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
+#| df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
 df.head()
 ```
 
@@ -148,4 +148,63 @@ monthly_avg = df.groupby("date")["ret_excess"].mean().reset_index()
     + labs(title="Cross-Sectional Mean Excess Return Over Time", x="", y="Mean Excess Return")
     + theme_minimal())
 ```
+
+```{python}
+# Exercise 1c: Preparing the feature matrix
+
+from sklearn.preprocessing import StandardScaler
+
+# 1. Create all stock characteristic × macro variable interactions
+interaction_cols = []
+
+for s in stock_chars:
+    for m in macro_vars:
+        interaction_name = f"{s}_x_{m}"
+        df[interaction_name] = df[s] * df[m]
+        interaction_cols.append(interaction_name)
+
+print("Number of interaction terms:", len(interaction_cols))
+
+# 2. One-hot encode the recoded industry classification
+sic_dummies = pd.get_dummies(df["sic_division"], prefix="sic", drop_first=True)
+
+print("Number of SIC dummies:", sic_dummies.shape[1])
+
+# 3. Define feature groups
+continuous_features = stock_chars + interaction_cols
+dummy_features = list(sic_dummies.columns)
+
+# 4. Build feature matrix X
+X = pd.concat(
+    [
+        df[continuous_features].reset_index(drop=True),
+        sic_dummies.reset_index(drop=True)
+    ],
+    axis=1
+)
+
+# 5. Define target variable y
+y = df["ret_excess"].reset_index(drop=True)
+
+# 6. Keep identifiers and portfolio-relevant variables for later exercises
+meta = df[["permno", "date", "mktcap_lag", "ret_excess"]].reset_index(drop=True)
+
+# 7. Standardize continuous predictors
+scaler = StandardScaler()
+X[continuous_features] = scaler.fit_transform(X[continuous_features])
+
+# 8. Final checks
+print("Feature matrix shape:", X.shape)
+print("Target shape:", y.shape)
+print("Number of continuous features:", len(continuous_features))
+print("Expected number of continuous features: 50")
+print("First 10 feature names:")
+print(X.columns[:10].tolist())
+
+X.head()
+```
+
+We construct the feature matrix following GKX: the 10 stock characteristics are augmented with all pairwise interactions between characteristics and the 4 macro variables, yielding 50 continuous features. Industry classifications are recoded into 10 SIC divisions and one-hot encoded (9 dummies, dropping one to avoid collinearity). All continuous features are standardized to zero mean and unit variance. The final feature matrix contains 59 columns and 1,111,605 observations.
+
+
 

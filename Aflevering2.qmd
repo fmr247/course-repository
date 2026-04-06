@@ -38,7 +38,7 @@ from plotnine import *
 from mizani.formatters import percent_format
 ```
 
-```{python} 
+```{python}
 #| echo: true
 #| cache: true
 
@@ -61,7 +61,91 @@ df = df[df["date"] >= "2000-01-01"]
 # Checking that filtering worked
 print("Earliest date after filtering:", df["date"].min())
 print("Dataset shape after filtering:", df.shape)
+```
 
-df.head()
+1.a We select 10 stock characteristics and 4 macroeconomic variables based on GKX Figure 5 and Table 4, prioritizing predictors consistently ranked highly across model types and covering the four classical return-predictability themes: momentum, size, value, and profitability.
+
+
+```{python}
+stock_chars = [
+    "characteristic_mom12m",  # 12-month momentum
+    "characteristic_mom1m",   # Short-term reversal (replaces r2_1 — not in dataset)
+    "characteristic_mvel1",   # Size (log market cap)
+    "characteristic_bm",      # Book-to-market (value)
+    "characteristic_roaq",    # Return on assets (profitability)
+    "characteristic_ep",      # Earnings-to-price
+    "characteristic_turn",    # Share turnover (liquidity)
+    "characteristic_beta",    # Market beta
+    "characteristic_invest",  # Investment growth
+    "characteristic_acc",     # Accruals
+]
+
+macro_vars = [
+    "macro_dp",   # Dividend-price ratio
+    "macro_ep",   # Earnings-price ratio
+    "macro_tbl",  # T-bill rate
+    "macro_dfy",  # Default yield spread
+]
+
+identifiers = ["permno", "date", "ret_excess", "mktcap_lag", "sic2"]
+df = df[identifiers + stock_chars + macro_vars]
+print(df.shape)
+```
+
+The macro variables capture aggregate valuation (`dp`, `ep`), the interest rate level (`tbl`), and credit risk (`dfy`) — all of which vary with the business cycle and interact meaningfully with stock-level predictors.
+
+### 1b: Summary Statistics and Missing Values
+```{python}
+# Summary statistics
+df[stock_chars + macro_vars].describe().T.round(3)
+```
+
+```{python}
+# Impute stock characteristics with cross-sectional median per month (consistent with GKX)
+for col in stock_chars:
+    df[col] = df.groupby("date")[col].transform(lambda x: x.fillna(x.median()))
+
+# Forward-fill macro variables (time-series, one value per month)
+df[macro_vars] = df[macro_vars].ffill().bfill()
+
+# Drop rows missing the target or market cap (required for portfolio construction)
+df = df.dropna(subset=["ret_excess", "mktcap_lag"])
+
+print(f"Remaining missing values: {df[stock_chars + macro_vars].isnull().sum().sum()}")
+print(f"Final shape: {df.shape}")
+```
+
+Missing stock characteristics are imputed with the **cross-sectional monthly median**, preserving the full cross-section while keeping imputations time-appropriate. Macro variables are **forward-filled**, reflecting that macro data is published with a delay. Rows with missing `ret_excess` or `mktcap_lag` are dropped as they are required in Exercise 3.
+```{python}
+# Recode SIC2 into 10 major divisions to limit one-hot encoding dimensionality
+def recode_sic(sic):
+    if pd.isna(sic): return "Other"
+    sic = int(sic)
+    if sic < 10:   return "Agriculture"
+    elif sic < 15: return "Mining"
+    elif sic < 18: return "Construction"
+    elif sic < 40: return "Manufacturing"
+    elif sic < 50: return "Transportation"
+    elif sic < 52: return "Wholesale"
+    elif sic < 60: return "Retail"
+    elif sic < 70: return "Finance"
+    elif sic < 90: return "Services"
+    else:          return "Public Admin"
+
+df["sic_division"] = df["sic2"].apply(recode_sic)
+
+# Verify the distribution looks right
+print(df["sic_division"].value_counts())
+```
+```{python}
+# Cross-sectional mean excess return over time
+monthly_avg = df.groupby("date")["ret_excess"].mean().reset_index()
+
+(ggplot(monthly_avg, aes(x="date", y="ret_excess"))
+    + geom_line(color="#ad3032", size=0.5)
+    + geom_hline(yintercept=0, linetype="dashed", color="gray")
+    + scale_y_continuous(labels=percent_format())
+    + labs(title="Cross-Sectional Mean Excess Return Over Time", x="", y="Mean Excess Return")
+    + theme_minimal())
 ```
 

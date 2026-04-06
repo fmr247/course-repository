@@ -39,7 +39,25 @@ from mizani.formatters import percent_format
 #| echo: true
 #| cache: true
 
-df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+#| df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+
+# Reading in the file
+df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
+df.head()
+```
+
+```{python}
+# Exercise 1a: Data preparation
+
+# Converting date to datetime
+df["date"] = pd.to_datetime(df["date"])
+
+# Filter: Keeping only observations from 2000
+df = df[df["date"] >= "2000-01-01"]
+
+# Checking that filtering worked
+print("Earliest date after filtering:", df["date"].min())
+print("Dataset shape after filtering:", df.shape)
 
 ```
 

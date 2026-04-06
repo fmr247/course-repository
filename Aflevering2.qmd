@@ -39,4 +39,7 @@ from mizani.formatters import percent_format
 #| echo: true
 #| cache: true
 
+df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+
 ```
+

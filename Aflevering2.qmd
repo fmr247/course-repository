@@ -27,7 +27,7 @@ format:
 ## Exercise
 
 # Exercise 1.
-The goal of this exercise is to construct a clean and transparent dataset for cross-sectional stock return prediction. Following the assignment, we keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic--macro interactions and industry dummies.
+The goal of this exercise is to construct a clean dataset for cross-sectional stock return prediction. We keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic - macro interactions and industry dummies.
 
 ```{python}
 import pandas as pd
@@ -38,12 +38,12 @@ from mizani.formatters import percent_format
 ```
 
 ### 1a: Variable selection and sample restriction
-We begin by reading the monthly stock characteristics data and restricting the sample to observations dated on or after January 1, 2000.
+First we read in the monthly stock characteristics data and restricting the sample to observations dated on or after January 1, 2000.
 
 ```{python}
 #| echo: false
 #| cache: false
-df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
 
 # Reading in the file
 #| df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
@@ -54,7 +54,7 @@ df["date"] = pd.to_datetime(df["date"])
 df = df.loc[df["date"] >= "2000-01-01"].copy()
 ```
 
-We select ten stock characteristics and four macroeconomic variables. The stock characteristics are chosen to cover the main themes emphasized in GKX: momentum, size, value, profitability, investment, risk, and trading activity. The macroeconomic variables capture aggregate valuation, the level of short-term interest rates, and credit conditions.
+We select ten stock characteristics and four macro variables capturing key GKX themes and macroeconomic conditions, including valuation, interest rates, and credit risk.
 
 ```{python}
 stock_chars = [
@@ -81,7 +81,7 @@ base_cols = ["permno", "date", "ret_excess", "mktcap_lag", "sic2"]
 df = df[base_cols + stock_chars + macro_vars].copy()
 ```
 
-The selected stock characteristics are economically interpretable and widely used in the empirical asset pricing literature. In particular, mom12m, mvel1, bm, and roaq map closely into the classical return-predictability themes of momentum, size, value, and profitability. We complement them with variables related to valuation (ep), trading activity (turn), risk exposure (beta), corporate investment (invest), and accounting quality (acc). The macro variables dp, ep, tbl, and dfy summarize broad market valuation, interest-rate conditions, and credit spreads, which are standard state variables in return prediction.
+The selected characteristics are economically interpretable and widely used in asset pricing. In particular, mom12m, mvel1, bm, and roaq capture momentum, size, value, and profitability. These are complemented by variables reflecting valuation, trading activity, risk, investment, and accounting quality. The macro variables summarize market valuation, interest rates, and credit conditions, which are standard predictors of returns.
 
 ### 1b: Summary Statistics and Missing Values
 Table 1 reports summary statistics for the selected predictors.
@@ -97,7 +97,7 @@ summary_table = (
 summary_table
 ```
 
-The selected stock characteristics are approximately centered around zero and bounded close to the [−1,1] interval, which is consistent with the scaling used in the provided dataset. The macro variables display much less cross-sectional variation because they are common state variables observed at the monthly level.
+The selected stock characteristics are approx centered around zero and bounded close to the [−1,1] interval, which is consistent with the scaling used in the provided dataset. The macro variables display much less cross-sectional variation because they are common state variables observed at the monthly level.
 
 To document data quality, we first count missing values before imputing.
 
@@ -112,7 +112,7 @@ missing_table = (
 
 missing_table
 ```
-For stock characteristics, we impute missing values with the cross-sectional median within each month. This preserves the cross section while ensuring that the imputation only uses information available at the same point in time. For macroeconomic variables, which are monthly time-series variables common to all firms, we use forward fill and backward fill. Finally, we drop observations with missing excess returns or lagged market capitalization, since these variables are required later for prediction evaluation and portfolio construction.
+Missing stock characteristics are imputed using the cross-sectional monthly median, preserving the cross section and using only contemporaneous information. Macroeconomic variables are forward- and backward-filled, reflecting their time-series nature. Observations with missing excess returns or lagged market capitalization are dropped, as these are required for later analysis.
 
 
 ```{python}
@@ -201,7 +201,7 @@ monthly_mean_ret = (
 )
 ```
 
-Overall, the cleaned sample remains large and well suited for machine learning. The missing-value treatment preserves the panel structure and follows a conservative logic: firm-level predictors are imputed cross-sectionally within month, whereas macroeconomic predictors are completed along the time dimension.
+Overall, the sample remains large and suited for machine learning. The missing-value treatment preserves the panel structure and follows a conservative logic: firm-level predictors are imputed cross-sectionally within month, whereas macroeconomic predictors are completed along the time dimension.
 
 ### 1c: Feature matrix construction
 The assignment asks for a feature matrix consisting of stock characteristics and all interactions between stock characteristics and macroeconomic variables. With 10 stock characteristics and 4 macro predictors, this yields 10+10×4=50 continuous predictors. We then add industry dummies based on the recoded SIC divisions.

@@ -26,10 +26,13 @@ format:
 
 ## Exercise
 
-1. Exercise 1 description
+1. We start by reading the file stock_characteristics_monthly.parquet, whoch contains 94 stock characteristics and 13 macroeconomic predictors. 
+a. We start by removing all observations before January 1st 2000, and choosing the following ten characteristics and four macroeconomic variables. 
+
 ```{python}
 import pandas as pd
 import numpy as np
+from great_tables._locations import header
 import tidyfinance as tf
 from plotnine import *
 from mizani.formatters import percent_format
@@ -41,5 +44,6 @@ from mizani.formatters import percent_format
 
 df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
 
+df.head()
 ```
 

@@ -26,45 +26,35 @@ format:
 
 ## Exercise
 
-1. We start by reading the file stock_characteristics_monthly.parquet, whoch contains 94 stock characteristics and 13 macroeconomic predictors. 
-a. We start by removing all observations before January 1st 2000, and choosing the following ten characteristics and four macroeconomic variables. 
+# Exercise 1.
+The goal of this exercise is to construct a clean and transparent dataset for cross-sectional stock return prediction. Following the assignment, we keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic--macro interactions and industry dummies.
 
 ```{python}
 import pandas as pd
 import numpy as np
-from great_tables._locations import header
 import tidyfinance as tf
 from plotnine import *
 from mizani.formatters import percent_format
 ```
 
-```{python}
-#| echo: true
-#| cache: true
+### 1a: Variable selection and sample restriction
+We begin by reading the monthly stock characteristics data and restricting the sample to observations dated on or after January 1, 2000.
 
- df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+```{python}
+#| echo: false
+#| cache: false
+df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
 
 # Reading in the file
 #| df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
 df.head()
-```
 
-```{python}
-# Exercise 1a: Data preparation
-
-# Converting date to datetime
+# Keep observations from January 2000 onward
 df["date"] = pd.to_datetime(df["date"])
-
-# Filter: Keeping only observations from 2000
-df = df[df["date"] >= "2000-01-01"]
-
-# Checking that filtering worked
-print("Earliest date after filtering:", df["date"].min())
-print("Dataset shape after filtering:", df.shape)
+df = df.loc[df["date"] >= "2000-01-01"].copy()
 ```
 
-1.a We select 10 stock characteristics and 4 macroeconomic variables based on GKX Figure 5 and Table 4, prioritizing predictors consistently ranked highly across model types and covering the four classical return-predictability themes: momentum, size, value, and profitability.
-
+We select ten stock characteristics and four macroeconomic variables. The stock characteristics are chosen to cover the main themes emphasized in GKX: momentum, size, value, profitability, investment, risk, and trading activity. The macroeconomic variables capture aggregate valuation, the level of short-term interest rates, and credit conditions.
 
 ```{python}
 stock_chars = [
@@ -87,124 +77,178 @@ macro_vars = [
     "macro_dfy",  # Default yield spread
 ]
 
-identifiers = ["permno", "date", "ret_excess", "mktcap_lag", "sic2"]
-df = df[identifiers + stock_chars + macro_vars]
-print(df.shape)
+base_cols = ["permno", "date", "ret_excess", "mktcap_lag", "sic2"]
+df = df[base_cols + stock_chars + macro_vars].copy()
 ```
 
-The macro variables capture aggregate valuation (`dp`, `ep`), the interest rate level (`tbl`), and credit risk (`dfy`) — all of which vary with the business cycle and interact meaningfully with stock-level predictors.
+The selected stock characteristics are economically interpretable and widely used in the empirical asset pricing literature. In particular, mom12m, mvel1, bm, and roaq map closely into the classical return-predictability themes of momentum, size, value, and profitability. We complement them with variables related to valuation (ep), trading activity (turn), risk exposure (beta), corporate investment (invest), and accounting quality (acc). The macro variables dp, ep, tbl, and dfy summarize broad market valuation, interest-rate conditions, and credit spreads, which are standard state variables in return prediction.
 
 ### 1b: Summary Statistics and Missing Values
-```{python}
-# Summary statistics
-df[stock_chars + macro_vars].describe().T.round(3)
-```
+Table 1 reports summary statistics for the selected predictors.
 
 ```{python}
-# Impute stock characteristics with cross-sectional median per month (consistent with GKX)
+summary_table = (
+    df[stock_chars + macro_vars]
+    .describe()
+    .T[["mean", "std", "min", "25%", "50%", "75%", "max"]]
+    .round(3)
+)
+
+summary_table
+```
+
+The selected stock characteristics are approximately centered around zero and bounded close to the [−1,1] interval, which is consistent with the scaling used in the provided dataset. The macro variables display much less cross-sectional variation because they are common state variables observed at the monthly level.
+
+To document data quality, we first count missing values before imputing.
+
+```{python}
+missing_table = (
+    df[stock_chars + macro_vars]
+    .isna()
+    .sum()
+    .rename("n_missing")
+    .to_frame()
+)
+
+missing_table
+```
+For stock characteristics, we impute missing values with the cross-sectional median within each month. This preserves the cross section while ensuring that the imputation only uses information available at the same point in time. For macroeconomic variables, which are monthly time-series variables common to all firms, we use forward fill and backward fill. Finally, we drop observations with missing excess returns or lagged market capitalization, since these variables are required later for prediction evaluation and portfolio construction.
+
+
+```{python}
+# Impute stock characteristics with monthly cross-sectional medians
 for col in stock_chars:
     df[col] = df.groupby("date")[col].transform(lambda x: x.fillna(x.median()))
 
-# Forward-fill macro variables (time-series, one value per month)
+# Fill macro variables over time
 df[macro_vars] = df[macro_vars].ffill().bfill()
 
-# Drop rows missing the target or market cap (required for portfolio construction)
-df = df.dropna(subset=["ret_excess", "mktcap_lag"])
-
-print(f"Remaining missing values: {df[stock_chars + macro_vars].isnull().sum().sum()}")
-print(f"Final shape: {df.shape}")
+# Drop rows missing target or portfolio weight variable
+df = df.dropna(subset=["ret_excess", "mktcap_lag"]).copy()
 ```
 
-Missing stock characteristics are imputed with the **cross-sectional monthly median**, preserving the full cross-section while keeping imputations time-appropriate. Macro variables are **forward-filled**, reflecting that macro data is published with a delay. Rows with missing `ret_excess` or `mktcap_lag` are dropped as they are required in Exercise 3.
 ```{python}
-# Recode SIC2 into 10 major divisions to limit one-hot encoding dimensionality
+post_missing = (
+    df[stock_chars + macro_vars + ["ret_excess", "mktcap_lag"]]
+    .isna()
+    .sum()
+    .rename("n_missing")
+    .to_frame()
+)
+
+post_missing
+```
+
+Because the assignment allows the use of sic2, we recode the detailed SIC groups into the 10 major SIC divisions. This keeps the dimensionality manageable while retaining broad industry information.
+
+```{python}
 def recode_sic(sic):
-    if pd.isna(sic): return "Other"
+    if pd.isna(sic):
+        return "Other"
     sic = int(sic)
-    if sic < 10:   return "Agriculture"
-    elif sic < 15: return "Mining"
-    elif sic < 18: return "Construction"
-    elif sic < 40: return "Manufacturing"
-    elif sic < 50: return "Transportation"
-    elif sic < 52: return "Wholesale"
-    elif sic < 60: return "Retail"
-    elif sic < 70: return "Finance"
-    elif sic < 90: return "Services"
-    else:          return "Public Admin"
+    if sic < 10:
+        return "Agriculture"
+    elif sic < 15:
+        return "Mining"
+    elif sic < 18:
+        return "Construction"
+    elif sic < 40:
+        return "Manufacturing"
+    elif sic < 50:
+        return "Transportation"
+    elif sic < 52:
+        return "Wholesale"
+    elif sic < 60:
+        return "Retail"
+    elif sic < 70:
+        return "Finance"
+    elif sic < 90:
+        return "Services"
+    else:
+        return "Public Admin"
 
 df["sic_division"] = df["sic2"].apply(recode_sic)
-
-# Verify the distribution looks right
-print(df["sic_division"].value_counts())
 ```
-```{python}
-# Cross-sectional mean excess return over time
-monthly_avg = df.groupby("date")["ret_excess"].mean().reset_index()
 
-(ggplot(monthly_avg, aes(x="date", y="ret_excess"))
-    + geom_line(color="#ad3032", size=0.5)
-    + geom_hline(yintercept=0, linetype="dashed", color="gray")
+```{python}
+industry_counts = (
+    df["sic_division"]
+    .value_counts()
+    .rename_axis("sic_division")
+    .reset_index(name="n_obs")
+)
+
+industry_counts
+```
+As a simple illustration of the target variable, Figure 1 plots the cross-sectional mean excess return by month.
+```{python}
+monthly_mean_ret = (
+    df.groupby("date", as_index=False)["ret_excess"]
+    .mean()
+)
+
+(
+    ggplot(monthly_mean_ret, aes(x="date", y="ret_excess"))
+    + geom_line(size=0.4)
+    + geom_hline(yintercept=0, linetype="dashed")
     + scale_y_continuous(labels=percent_format())
-    + labs(title="Cross-Sectional Mean Excess Return Over Time", x="", y="Mean Excess Return")
-    + theme_minimal())
+    + labs(
+        title="Cross-sectional mean excess return over time",
+        x="",
+        y="Mean excess return"
+    )
+    + theme_minimal()
+)
 ```
 
+Overall, the cleaned sample remains large and well suited for machine learning. The missing-value treatment preserves the panel structure and follows a conservative logic: firm-level predictors are imputed cross-sectionally within month, whereas macroeconomic predictors are completed along the time dimension.
+
+### 1c: Feature matrix construction
+The assignment asks for a feature matrix consisting of stock characteristics and all interactions between stock characteristics and macroeconomic variables. With 10 stock characteristics and 4 macro predictors, this yields 10+10×4=50 continuous predictors. We then add industry dummies based on the recoded SIC divisions.
+
 ```{python}
-# Exercise 1c: Preparing the feature matrix
-
-from sklearn.preprocessing import StandardScaler
-
-# 1. Create all stock characteristic × macro variable interactions
+# Create stock characteristic × macro interactions
 interaction_cols = []
-
 for s in stock_chars:
     for m in macro_vars:
-        interaction_name = f"{s}_x_{m}"
-        df[interaction_name] = df[s] * df[m]
-        interaction_cols.append(interaction_name)
+        name = f"{s}_x_{m}"
+        df[name] = df[s] * df[m]
+        interaction_cols.append(name)
 
-print("Number of interaction terms:", len(interaction_cols))
+# One-hot encode broad industry groups
+sic_dummies = pd.get_dummies(df["sic_division"], prefix="sic", drop_first=True, dtype=int)
 
-# 2. One-hot encode the recoded industry classification
-sic_dummies = pd.get_dummies(df["sic_division"], prefix="sic", drop_first=True)
-
-print("Number of SIC dummies:", sic_dummies.shape[1])
-
-# 3. Define feature groups
+# Final feature sets
 continuous_features = stock_chars + interaction_cols
 dummy_features = list(sic_dummies.columns)
 
-# 4. Build feature matrix X
+# Build X, y, and metadata objects for later exercises
 X = pd.concat(
-    [
-        df[continuous_features].reset_index(drop=True),
-        sic_dummies.reset_index(drop=True)
-    ],
+    [df[continuous_features].reset_index(drop=True),
+     sic_dummies.reset_index(drop=True)],
     axis=1
 )
 
-# 5. Define target variable y
 y = df["ret_excess"].reset_index(drop=True)
 
-# 6. Keep identifiers and portfolio-relevant variables for later exercises
 meta = df[["permno", "date", "mktcap_lag", "ret_excess"]].reset_index(drop=True)
-
-# 7. Standardize continuous predictors
-scaler = StandardScaler()
-X[continuous_features] = scaler.fit_transform(X[continuous_features])
-
-# 8. Final checks
-print("Feature matrix shape:", X.shape)
-print("Target shape:", y.shape)
-print("Number of continuous features:", len(continuous_features))
-print("Expected number of continuous features: 50")
-print("First 10 feature names:")
-print(X.columns[:10].tolist())
-
-X.head()
 ```
 
-We construct the feature matrix following GKX: the 10 stock characteristics are augmented with all pairwise interactions between characteristics and the 4 macro variables, yielding 50 continuous features. Industry classifications are recoded into 10 SIC divisions and one-hot encoded (9 dummies, dropping one to avoid collinearity). All continuous features are standardized to zero mean and unit variance. The final feature matrix contains 59 columns and 1,111,605 observations.
+```{python}
+feature_overview = pd.DataFrame({
+    "object": ["X", "y", "meta"],
+    "shape": [X.shape, y.shape, meta.shape]
+})
 
+feature_overview
+```
 
+```{python}
+pd.DataFrame({
+    "feature_group": ["stock characteristics", "interaction terms", "industry dummies", "total features"],
+    "count": [len(stock_chars), len(interaction_cols), len(dummy_features), X.shape[1]]
+})
+```
+
+The final feature matrix contains the 10 selected stock characteristics, 40 interaction terms between stock characteristics and macroeconomic variables, and industry dummies for the broad SIC divisions. 
 

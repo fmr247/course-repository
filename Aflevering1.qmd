@@ -107,7 +107,7 @@ summary_ex1 = pd.DataFrame({
 summary_ex1.round(4)
 ```
 
-Table @tbl-market-moments reports the estimated monthly mean excess market return and variance, together with their annualized counterparts. The estimated monthly mean excess return is approximately 0.45\%, while the annualized mean excess return is approximately 5.45\%. The corresponding annualized variance is approximately 0.0228.
+@tbl-market-moments reports the estimated monthly mean excess market return and variance, together with their annualized counterparts. The estimated monthly mean excess return is approximately 0.45\%, while the annualized mean excess return is approximately 5.45\%. The corresponding annualized variance is approximately 0.0228.
 
 ### Synthetic asset universe
 Next, we construct a universe of $N = 50$ synthetic assets following the single-factor model
@@ -602,6 +602,6 @@ table_ex7
 )
 ```
 
-Figure @fig-strategy-comparison compares the average Sharpe ratios of the different strategies across sample sizes.
+@fig-strategy-comparison compares the average Sharpe ratios of the different strategies across sample sizes.
 
 The results show that the plug-in tangency portfolio is the most sensitive to estimation error. In contrast, the equally weighted and inverse-volatility portfolios perform more consistently across different sample sizes because they rely less on estimated parameters. As the sample size increases, the performance of the plug-in tangency portfolio improves and gradually approaches the true optimum.

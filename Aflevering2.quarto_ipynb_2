@@ -1,0 +1,976 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "---\n",
+        "title: Mandatory Assignment 2\n",
+        "author: Astrid Haarup Møller, Esmeralda Ophelia Larsson & Nanna Munch Kjøller\n",
+        "date: 2024-04-11\n",
+        "date-format: MMMM DD, YYYY\n",
+        "execute: \n",
+        "  echo: false\n",
+        "  warning: false\n",
+        "format:\n",
+        "  pdf: \n",
+        "    number-sections: true\n",
+        "    colorlinks: true\n",
+        "    geometry:\n",
+        "      - top=20mm\n",
+        "      - left=20mm\n",
+        "      - bottom=20mm\n",
+        "      - right=20mm\n",
+        "    bibliography: references.bib\n",
+        "    cite-method: natbib\n",
+        "    biblio-style: apalike  \n",
+        "    lang: en\n",
+        "    fontsize: 12pt\n",
+        "    highlight-style: github-light\n",
+        "---\n",
+        "\n",
+        "\n",
+        "# Exercise\n",
+        "\n",
+        "## Exercise 1.\n",
+        "The goal of this exercise is to construct a clean dataset for cross-sectional stock return prediction. We keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic - macro interactions and industry dummies."
+      ],
+      "id": "a31bffd6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import pandas as pd\n",
+        "import numpy as np\n",
+        "import tidyfinance as tf\n",
+        "from plotnine import *\n",
+        "from mizani.formatters import percent_format"
+      ],
+      "id": "0470440c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### 1a: Variable selection and sample restriction\n",
+        "First we read in the monthly stock characteristics data and restricting the sample to observations dated on or after January 1, 2000."
+      ],
+      "id": "cb3b0589"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cache": false
+      },
+      "source": [
+        "#| echo: false\n",
+        "df = pd.read_parquet(\"//Users/AstridMoeller/AEF/data/stock_characteristics_monthly.parquet\")\n",
+        "\n",
+        "# Reading in the file\n",
+        "#| df = pd.read_parquet(\"/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet\")\n",
+        "df.head()\n",
+        "\n",
+        "# Keep observations from January 2000 onward\n",
+        "df[\"date\"] = pd.to_datetime(df[\"date\"])\n",
+        "df = df.loc[df[\"date\"] >= \"2000-01-01\"].copy()"
+      ],
+      "id": "16e08f9a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "We select ten stock characteristics and four macro variables capturing key GKX themes and macroeconomic conditions, including valuation, interest rates, and credit risk."
+      ],
+      "id": "c4ae6745"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "stock_chars = [\n",
+        "    \"characteristic_mom12m\",  # 12-month momentum\n",
+        "    \"characteristic_mom1m\",   # Short-term reversal (replaces r2_1 — not in dataset)\n",
+        "    \"characteristic_mvel1\",   # Size (log market cap)\n",
+        "    \"characteristic_bm\",      # Book-to-market (value)\n",
+        "    \"characteristic_roaq\",    # Return on assets (profitability)\n",
+        "    \"characteristic_ep\",      # Earnings-to-price\n",
+        "    \"characteristic_turn\",    # Share turnover (liquidity)\n",
+        "    \"characteristic_beta\",    # Market beta\n",
+        "    \"characteristic_invest\",  # Investment growth\n",
+        "    \"characteristic_acc\",     # Accruals\n",
+        "]\n",
+        "\n",
+        "macro_vars = [\n",
+        "    \"macro_dp\",   # Dividend-price ratio\n",
+        "    \"macro_ep\",   # Earnings-price ratio\n",
+        "    \"macro_tbl\",  # T-bill rate\n",
+        "    \"macro_dfy\",  # Default yield spread\n",
+        "]\n",
+        "\n",
+        "base_cols = [\"permno\", \"date\", \"ret_excess\", \"mktcap_lag\", \"sic2\"]\n",
+        "df = df[base_cols + stock_chars + macro_vars].copy()"
+      ],
+      "id": "800745e2",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The selected characteristics are economically interpretable and widely used in asset pricing. In particular, mom12m, mvel1, bm, and roaq capture momentum, size, value, and profitability. These are complemented by variables reflecting valuation, trading activity, risk, investment, and accounting quality. The macro variables summarize market valuation, interest rates, and credit conditions, which are standard predictors of returns.\n",
+        "\n",
+        "### 1b: Summary Statistics and Missing Values\n",
+        "Table 1 reports summary statistics for the selected predictors."
+      ],
+      "id": "8a8730c3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "summary_table = (\n",
+        "    df[stock_chars + macro_vars]\n",
+        "    .describe()\n",
+        "    .T[[\"mean\", \"std\", \"min\", \"25%\", \"50%\", \"75%\", \"max\"]]\n",
+        "    .round(3)\n",
+        ")\n",
+        "\n",
+        "summary_table"
+      ],
+      "id": "d4aa324a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The selected stock characteristics are approx centered around zero and bounded close to the [−1,1] interval, which is consistent with the scaling used in the provided dataset. The macro variables display much less cross-sectional variation because they are common state variables observed at the monthly level.\n",
+        "\n",
+        "To document data quality, we first count missing values before imputing."
+      ],
+      "id": "9ff8ede7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "missing_table = (\n",
+        "    df[stock_chars + macro_vars]\n",
+        "    .isna()\n",
+        "    .sum()\n",
+        "    .rename(\"n_missing\")\n",
+        "    .to_frame()\n",
+        ")\n",
+        "\n",
+        "missing_table"
+      ],
+      "id": "c9f025af",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Missing stock characteristics are imputed using the cross-sectional monthly median, preserving the cross section and using only contemporaneous information. Macroeconomic variables are forward- and backward-filled, reflecting their time-series nature. Observations with missing excess returns or lagged market capitalization are dropped, as these are required for later analysis.\n"
+      ],
+      "id": "f8d00db3"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Impute stock characteristics with monthly cross-sectional medians\n",
+        "for col in stock_chars:\n",
+        "    df[col] = df.groupby(\"date\")[col].transform(lambda x: x.fillna(x.median()))\n",
+        "\n",
+        "# Fill macro variables over time\n",
+        "df[macro_vars] = df[macro_vars].ffill().bfill()\n",
+        "\n",
+        "# Drop rows missing target or portfolio weight variable\n",
+        "df = df.dropna(subset=[\"ret_excess\", \"mktcap_lag\"]).copy()"
+      ],
+      "id": "d7df5242",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "post_missing = (\n",
+        "    df[stock_chars + macro_vars + [\"ret_excess\", \"mktcap_lag\"]]\n",
+        "    .isna()\n",
+        "    .sum()\n",
+        "    .rename(\"n_missing\")\n",
+        "    .to_frame()\n",
+        ")\n",
+        "\n",
+        "post_missing"
+      ],
+      "id": "d947aa36",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Because the assignment allows the use of sic2, we recode the detailed SIC groups into the 10 major SIC divisions. This keeps the dimensionality manageable while retaining broad industry information."
+      ],
+      "id": "f538dfc0"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def recode_sic(sic):\n",
+        "    if pd.isna(sic):\n",
+        "        return \"Other\"\n",
+        "    sic = int(sic)\n",
+        "    if sic < 10:\n",
+        "        return \"Agriculture\"\n",
+        "    elif sic < 15:\n",
+        "        return \"Mining\"\n",
+        "    elif sic < 18:\n",
+        "        return \"Construction\"\n",
+        "    elif sic < 40:\n",
+        "        return \"Manufacturing\"\n",
+        "    elif sic < 50:\n",
+        "        return \"Transportation\"\n",
+        "    elif sic < 52:\n",
+        "        return \"Wholesale\"\n",
+        "    elif sic < 60:\n",
+        "        return \"Retail\"\n",
+        "    elif sic < 70:\n",
+        "        return \"Finance\"\n",
+        "    elif sic < 90:\n",
+        "        return \"Services\"\n",
+        "    else:\n",
+        "        return \"Public Admin\"\n",
+        "\n",
+        "df[\"sic_division\"] = df[\"sic2\"].apply(recode_sic)"
+      ],
+      "id": "e4263105",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "industry_counts = (\n",
+        "    df[\"sic_division\"]\n",
+        "    .value_counts()\n",
+        "    .rename_axis(\"sic_division\")\n",
+        "    .reset_index(name=\"n_obs\")\n",
+        ")\n",
+        "\n",
+        "industry_counts"
+      ],
+      "id": "92820b38",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "As a simple illustration of the target variable, Figure 1 plots the cross-sectional mean excess return by month."
+      ],
+      "id": "3cef0f62"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "monthly_mean_ret = (\n",
+        "    df.groupby(\"date\", as_index=False)[\"ret_excess\"]\n",
+        "    .mean()\n",
+        ")\n",
+        "\n",
+        "(\n",
+        "    ggplot(monthly_mean_ret, aes(x=\"date\", y=\"ret_excess\"))\n",
+        "    + geom_line(size=0.4)\n",
+        "    + geom_hline(yintercept=0, linetype=\"dashed\")\n",
+        "    + scale_y_continuous(labels=percent_format())\n",
+        "    + labs(\n",
+        "        title=\"Cross-sectional mean excess return over time\",\n",
+        "        x=\"\",\n",
+        "        y=\"Mean excess return\"\n",
+        "    )\n",
+        "    + theme_minimal()\n",
+        ")"
+      ],
+      "id": "9781af8d",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Overall, the sample remains large and suited for machine learning. The missing-value treatment preserves the panel structure and follows a conservative logic: firm-level predictors are imputed cross-sectionally within month, whereas macroeconomic predictors are completed along the time dimension.\n",
+        "\n",
+        "### 1c: Feature matrix construction\n",
+        "The assignment asks for a feature matrix consisting of stock characteristics and all interactions between stock characteristics and macroeconomic variables. With 10 stock characteristics and 4 macro predictors, this yields 10+10×4=50 continuous predictors. We then add industry dummies based on the recoded SIC divisions."
+      ],
+      "id": "abc829b7"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Create stock characteristic × macro interactions\n",
+        "interaction_cols = []\n",
+        "for s in stock_chars:\n",
+        "    for m in macro_vars:\n",
+        "        name = f\"{s}_x_{m}\"\n",
+        "        df[name] = df[s] * df[m]\n",
+        "        interaction_cols.append(name)\n",
+        "\n",
+        "# One-hot encode broad industry groups\n",
+        "sic_dummies = pd.get_dummies(df[\"sic_division\"], prefix=\"sic\", drop_first=True, dtype=int)\n",
+        "\n",
+        "# Final feature sets\n",
+        "continuous_features = stock_chars + interaction_cols\n",
+        "dummy_features = list(sic_dummies.columns)\n",
+        "\n",
+        "# Build X, y, and metadata objects for later exercises\n",
+        "X = pd.concat(\n",
+        "    [df[continuous_features].reset_index(drop=True),\n",
+        "     sic_dummies.reset_index(drop=True)],\n",
+        "    axis=1\n",
+        ")\n",
+        "\n",
+        "y = df[\"ret_excess\"].reset_index(drop=True)\n",
+        "\n",
+        "meta = df[[\"permno\", \"date\", \"mktcap_lag\", \"ret_excess\"]].reset_index(drop=True)"
+      ],
+      "id": "af2f707b",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "feature_overview = pd.DataFrame({\n",
+        "    \"object\": [\"X\", \"y\", \"meta\"],\n",
+        "    \"shape\": [X.shape, y.shape, meta.shape]\n",
+        "})\n",
+        "\n",
+        "feature_overview"
+      ],
+      "id": "97e98532",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "pd.DataFrame({\n",
+        "    \"feature_group\": [\"stock characteristics\", \"interaction terms\", \"industry dummies\", \"total features\"],\n",
+        "    \"count\": [len(stock_chars), len(interaction_cols), len(dummy_features), X.shape[1]]\n",
+        "})"
+      ],
+      "id": "55dc929e",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The final feature matrix contains the 10 selected stock characteristics, 40 interaction terms between stock characteristics and macroeconomic variables, and industry dummies for the broad SIC divisions. \n",
+        "\n",
+        "\n",
+        "## Exercise 2\n",
+        "\n",
+        "### Exercise 2a: Model descriptions\n",
+        "\n",
+        "**Elastic Net** is a penalized linear regression model that combines the $L_1$ penalty from the Lasso and the $L_2$ penalty from Ridge regression. It minimizes the residual sum of squares subject to a penalty on coefficient size, which helps control overfitting in high-dimensional settings with correlated predictors. This is particularly relevant in our setting, as the feature matrix includes stock characteristics, interaction terms, and industry dummies. The key hyperparameters are the overall penalty strength (`alpha`) and the mixing parameter (`l1_ratio`), where `l1_ratio = 1` corresponds to the Lasso and `l1_ratio = 0` corresponds to Ridge.\n",
+        "\n",
+        "**Neural Network (MLP)** approximates $g(z_{i,t})$ as a composition of linear transformations and nonlinear activation functions across multiple hidden layers. Each neuron computes $x_k^l = f\\left(\\theta_0^k + \\sum_j z_j \\theta_j^k\\right)$, where $f$ is the ReLU activation function. The network is trained by minimizing the mean squared prediction error via backpropagation. The key hyperparameters are the number and size of hidden layers (`hidden_layer_sizes`), the $L_2$ regularization strength (`alpha`), and the maximum number of iterations (`max_iter`).\n",
+        "\n",
+        "Together, the two models provide a comparison between a structured, regularized linear benchmark and a more flexible nonlinear model.\n",
+        "\n",
+        "### Exercise 2b: Time-respecting data split"
+      ],
+      "id": "2a574b90"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "from sklearn.preprocessing import StandardScaler\n",
+        "\n",
+        "# Split by unique dates rather than raw rows\n",
+        "unique_dates = sorted(meta[\"date\"].unique())\n",
+        "\n",
+        "n_dates = len(unique_dates)\n",
+        "test_start = int(n_dates * 0.80)\n",
+        "val_start = int(test_start * 0.75)\n",
+        "\n",
+        "train_dates = unique_dates[:val_start]\n",
+        "val_dates   = unique_dates[val_start:test_start]\n",
+        "test_dates  = unique_dates[test_start:]\n",
+        "\n",
+        "train_mask = meta[\"date\"].isin(train_dates)\n",
+        "val_mask   = meta[\"date\"].isin(val_dates)\n",
+        "test_mask  = meta[\"date\"].isin(test_dates)\n",
+        "\n",
+        "X_train = X.loc[train_mask].reset_index(drop=True).copy()\n",
+        "X_val   = X.loc[val_mask].reset_index(drop=True).copy()\n",
+        "X_test  = X.loc[test_mask].reset_index(drop=True).copy()\n",
+        "\n",
+        "y_train = y.loc[train_mask].reset_index(drop=True).copy()\n",
+        "y_val   = y.loc[val_mask].reset_index(drop=True).copy()\n",
+        "y_test  = y.loc[test_mask].reset_index(drop=True).copy()\n",
+        "\n",
+        "meta_train = meta.loc[train_mask].reset_index(drop=True).copy()\n",
+        "meta_val   = meta.loc[val_mask].reset_index(drop=True).copy()\n",
+        "meta_test  = meta.loc[test_mask].reset_index(drop=True).copy()\n",
+        "\n",
+        "# Standardize continuous predictors using training data only\n",
+        "continuous_features = stock_chars + interaction_cols\n",
+        "\n",
+        "scaler = StandardScaler()\n",
+        "X_train[continuous_features] = scaler.fit_transform(X_train[continuous_features])\n",
+        "X_val[continuous_features]   = scaler.transform(X_val[continuous_features])\n",
+        "X_test[continuous_features]  = scaler.transform(X_test[continuous_features])\n",
+        "\n",
+        "print(f\"Train:      {meta_train['date'].min().date()} to {meta_train['date'].max().date()} ({len(X_train):,} obs)\")\n",
+        "print(f\"Validation: {meta_val['date'].min().date()} to {meta_val['date'].max().date()} ({len(X_val):,} obs)\")\n",
+        "print(f\"Test:       {meta_test['date'].min().date()} to {meta_test['date'].max().date()} ({len(X_test):,} obs)\")\n",
+        "print(f\"Number of train months: {len(train_dates)}\")\n",
+        "print(f\"Number of validation months: {len(val_dates)}\")\n",
+        "print(f\"Number of test months: {len(test_dates)}\")"
+      ],
+      "id": "f7cc4ac7",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "The dataset is split chronologically to avoid look-ahead bias: all training observations precede validation observations, which precede test observations. The most recent 20% of observations form the test set. Among the remaining 80%, we allocate 75% to training and 25% to validation, yielding an approximate 60/20/20 split overall. Continuous predictors are standardized using the training data only, and the same transformation is applied to the validation and test sets to avoid data leakage.\n",
+        "\n",
+        "\n",
+        "### Exercise 2c: Hyperparameter tuning"
+      ],
+      "id": "fce4c2b9"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cache": true
+      },
+      "source": [
+        "import itertools\n",
+        "from sklearn.linear_model import ElasticNet\n",
+        "from sklearn.neural_network import MLPRegressor\n",
+        "from sklearn.metrics import root_mean_squared_error"
+      ],
+      "id": "fca74435",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cache": true
+      },
+      "source": [
+        "# ── Elastic Net tuning ────────────────────────────────────────────────────────\n",
+        "# Compact grid to keep computation tractable on large panel data\n",
+        "en_param_grid = {\n",
+        "    \"alpha\":    [0.001, 0.1],\n",
+        "    \"l1_ratio\": [0.2, 0.8],\n",
+        "}\n",
+        "\n",
+        "en_results = []\n",
+        "for params in [dict(zip(en_param_grid, v)) for v in itertools.product(*en_param_grid.values())]:\n",
+        "    model = ElasticNet(max_iter=5000, fit_intercept=True, **params)\n",
+        "    model.fit(X_train, y_train)\n",
+        "    train_rmse = root_mean_squared_error(y_train, model.predict(X_train))\n",
+        "    val_rmse   = root_mean_squared_error(y_val,   model.predict(X_val))\n",
+        "    en_results.append({**params, \"train_rmse\": train_rmse, \"val_rmse\": val_rmse})\n",
+        "\n",
+        "en_results_df = pd.DataFrame(en_results).sort_values(\"val_rmse\")\n",
+        "print(\"Elastic Net tuning results:\")\n",
+        "print(en_results_df.round(6).to_string(index=False))\n",
+        "\n",
+        "best_en_params = en_results_df.iloc[0][list(en_param_grid.keys())].to_dict()\n",
+        "print(f\"\\nBest Elastic Net params: {best_en_params}\")"
+      ],
+      "id": "787abb23",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cache": true
+      },
+      "source": [
+        "# ── Neural Network tuning ─────────────────────────────────────────────────────\n",
+        "# Compact grid: 1 architecture × 2 regularization strengths = 2 fits\n",
+        "nn_param_grid = {\n",
+        "    \"hidden_layer_sizes\": [(32, 16)],\n",
+        "    \"alpha\":              [0.001, 0.01],\n",
+        "}\n",
+        "\n",
+        "nn_results = []\n",
+        "for params in [dict(zip(nn_param_grid, v)) for v in itertools.product(*nn_param_grid.values())]:\n",
+        "    model = MLPRegressor(\n",
+        "        activation=\"relu\", solver=\"adam\",\n",
+        "        max_iter=50, random_state=42, **params\n",
+        "    )\n",
+        "    model.fit(X_train, y_train)\n",
+        "    train_rmse = root_mean_squared_error(y_train, model.predict(X_train))\n",
+        "    val_rmse   = root_mean_squared_error(y_val,   model.predict(X_val))\n",
+        "    nn_results.append({\n",
+        "        \"hidden_layers\": str(params[\"hidden_layer_sizes\"]),\n",
+        "        \"alpha\": params[\"alpha\"],\n",
+        "        \"train_rmse\": train_rmse,\n",
+        "        \"val_rmse\": val_rmse\n",
+        "    })\n",
+        "\n",
+        "nn_results_df = pd.DataFrame(nn_results).sort_values(\"val_rmse\")\n",
+        "print(\"Neural Network tuning results:\")\n",
+        "print(nn_results_df.round(6).to_string(index=False))\n",
+        "\n",
+        "best_nn_params = nn_results_df.iloc[0]\n",
+        "print(f\"\\nBest NN: layers={best_nn_params['hidden_layers']}, alpha={best_nn_params['alpha']}\")"
+      ],
+      "id": "93cc255c",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "cache": true
+      },
+      "source": [
+        "import ast\n",
+        "\n",
+        "# ── Fit final models on best hyperparameters ──────────────────────────────────\n",
+        "final_en = ElasticNet(\n",
+        "    alpha=best_en_params[\"alpha\"],\n",
+        "    l1_ratio=best_en_params[\"l1_ratio\"],\n",
+        "    max_iter=5000,\n",
+        "    fit_intercept=True\n",
+        ")\n",
+        "final_en.fit(X_train, y_train)\n",
+        "\n",
+        "best_hidden = ast.literal_eval(best_nn_params[\"hidden_layers\"])\n",
+        "final_nn = MLPRegressor(\n",
+        "    hidden_layer_sizes=best_hidden,\n",
+        "    alpha=best_nn_params[\"alpha\"],\n",
+        "    activation=\"relu\", solver=\"adam\",\n",
+        "    max_iter=50, random_state=42\n",
+        ")\n",
+        "final_nn.fit(X_train, y_train)\n",
+        "\n",
+        "print(\"Final models fitted successfully.\")\n",
+        "print(f\"Elastic Net    — val RMSE: {root_mean_squared_error(y_val, final_en.predict(X_val)):.6f}\")\n",
+        "print(f\"Neural Network — val RMSE: {root_mean_squared_error(y_val, final_nn.predict(X_val)):.6f}\")"
+      ],
+      "id": "90104f1a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Hyperparameters are tuned by grid search, evaluating each candidate on the validation set using root mean squared prediction error (RMSE) as the selection criterion — consistent with the MSPE-minimization objective in GKX. The Elastic Net grid varies both the penalty strength and the balance between $L_1$ and $L_2$ regularization (9 combinations), while the Neural Network grid varies architecture and regularization strength (4 combinations). Larger penalties increase bias but reduce variance. The final model is the specification with the lowest validation RMSE.\n",
+        "\n",
+        "\n",
+        "### Exercise 2d: Save models to disk"
+      ],
+      "id": "cdfd91d4"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import joblib\n",
+        "\n",
+        "# Save final model objects to disk for peer review\n",
+        "joblib.dump(final_en, \"model_elastic_net.joblib\")\n",
+        "joblib.dump(final_nn, \"model_neural_network.joblib\")\n",
+        "\n",
+        "print(\"Models saved: model_elastic_net.joblib, model_neural_network.joblib\")"
+      ],
+      "id": "84475230",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "To load the models for peer review, run:"
+      ],
+      "id": "85d7ea3d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "#| eval: false\n",
+        "#| echo: true\n",
+        "import joblib\n",
+        "final_en = joblib.load(\"model_elastic_net.joblib\")\n",
+        "final_nn = joblib.load(\"model_neural_network.joblib\")"
+      ],
+      "id": "bfa220fb",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "## Exercise 3\n",
+        "### Exercise 3a: Generate predicted excess returns"
+      ],
+      "id": "4f46edcc"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Generate predictions directly from fitted models\n",
+        "pred_val_en = final_en.predict(X_val)\n",
+        "pred_val_nn = final_nn.predict(X_val)\n",
+        "\n",
+        "pred_test_en = final_en.predict(X_test)\n",
+        "pred_test_nn = final_nn.predict(X_test)\n",
+        "\n",
+        "# Debug: check predictions\n",
+        "print(f\"pred_val_en — NaN: {np.isnan(pred_val_en).sum()}, sample: {pred_val_en[:3]}\")\n",
+        "print(f\"pred_val_nn — NaN: {np.isnan(pred_val_nn).sum()}, sample: {pred_val_nn[:3]}\")\n",
+        "print(f\"X_val shape: {X_val.shape}\")\n",
+        "print(f\"X_val NaN count: {X_val.isna().sum().sum()}\")\n",
+        "\n",
+        "# Add predictions to metadata\n",
+        "meta_val = meta_val.copy()\n",
+        "meta_val[\"pred_en\"] = pred_val_en\n",
+        "meta_val[\"pred_nn\"] = pred_val_nn\n",
+        "\n",
+        "meta_test = meta_test.copy()\n",
+        "meta_test[\"pred_en\"] = pred_test_en\n",
+        "meta_test[\"pred_nn\"] = pred_test_nn\n",
+        "\n",
+        "print(f\"\\nmeta_val pred_en NaN: {meta_val['pred_en'].isna().sum()}\")\n",
+        "print(f\"meta_val index sample: {meta_val.index[:3].tolist()}\")\n",
+        "print(f\"pred_val_en length: {len(pred_val_en)}, meta_val length: {len(meta_val)}\")"
+      ],
+      "id": "c2dcd6da",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Exercise 3b: Decile portfolio sorts"
+      ],
+      "id": "332d4f68"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def assign_deciles(df, pred_col, decile_col):\n",
+        "    \"\"\"\n",
+        "    Assign stocks to decile portfolios each month based on predicted returns.\n",
+        "    Uses ranked predictions to avoid qcut dropping bins when many values are tied.\n",
+        "    \"\"\"\n",
+        "    df = df.copy()\n",
+        "\n",
+        "    def month_deciles(x):\n",
+        "        # If too few observations in a month, return NaN\n",
+        "        if x.notna().sum() < 10:\n",
+        "            return pd.Series(np.nan, index=x.index)\n",
+        "\n",
+        "        # Rank first so tied values do not break qcut\n",
+        "        ranked = x.rank(method=\"first\")\n",
+        "\n",
+        "        return pd.qcut(ranked, 10, labels=False)\n",
+        "\n",
+        "    df[decile_col] = df.groupby(\"date\")[pred_col].transform(month_deciles)\n",
+        "    df[decile_col] = pd.to_numeric(df[decile_col], errors=\"coerce\")\n",
+        "\n",
+        "    return df\n",
+        "\n",
+        "meta_val = assign_deciles(meta_val, \"pred_en\", \"decile_en\")\n",
+        "meta_val = assign_deciles(meta_val, \"pred_nn\", \"decile_nn\")\n",
+        "\n",
+        "meta_test = assign_deciles(meta_test, \"pred_en\", \"decile_en\")\n",
+        "meta_test = assign_deciles(meta_test, \"pred_nn\", \"decile_nn\")\n",
+        "\n",
+        "print(\"Decile assignment done.\")\n",
+        "print(f\"NaN in decile_en (val): {meta_val['decile_en'].isna().sum()}\")\n",
+        "print(\"Validation decile counts for Elastic Net:\")\n",
+        "print(meta_val[\"decile_en\"].value_counts(dropna=False).sort_index())\n",
+        "\n",
+        "print(\"\\nTest decile counts for Elastic Net:\")\n",
+        "print(meta_test[\"decile_en\"].value_counts(dropna=False).sort_index())"
+      ],
+      "id": "48fa3537",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Exercise 3c: Long-short portfolio"
+      ],
+      "id": "74359b8d"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def compute_longshort(df, decile_col):\n",
+        "    \"\"\"\n",
+        "    Compute monthly value-weighted long-short portfolio returns.\n",
+        "    Long = top decile (9), Short = bottom decile (0).\n",
+        "    Skips months where one of the legs is missing.\n",
+        "    \"\"\"\n",
+        "    results = []\n",
+        "\n",
+        "    for date, group in df.groupby(\"date\"):\n",
+        "        group = group.dropna(subset=[decile_col, \"ret_excess\", \"mktcap_lag\"])\n",
+        "\n",
+        "        long_leg = group[group[decile_col] == 9]\n",
+        "        short_leg = group[group[decile_col] == 0]\n",
+        "\n",
+        "        if len(long_leg) == 0 or len(short_leg) == 0:\n",
+        "            continue\n",
+        "\n",
+        "        if long_leg[\"mktcap_lag\"].sum() <= 0 or short_leg[\"mktcap_lag\"].sum() <= 0:\n",
+        "            continue\n",
+        "\n",
+        "        long_ret = np.average(long_leg[\"ret_excess\"], weights=long_leg[\"mktcap_lag\"])\n",
+        "        short_ret = np.average(short_leg[\"ret_excess\"], weights=short_leg[\"mktcap_lag\"])\n",
+        "        ls_ret = long_ret - short_ret\n",
+        "\n",
+        "        results.append({\n",
+        "            \"date\": date,\n",
+        "            \"long_ret\": long_ret,\n",
+        "            \"short_ret\": short_ret,\n",
+        "            \"ls_ret\": ls_ret\n",
+        "        })\n",
+        "\n",
+        "    out = pd.DataFrame(results)\n",
+        "\n",
+        "    if out.empty:\n",
+        "        raise ValueError(\n",
+        "            f\"No valid months found for {decile_col}. \"\n",
+        "            f\"Check whether both decile 0 and decile 9 exist in each month.\"\n",
+        "        )\n",
+        "\n",
+        "    out[\"date\"] = pd.to_datetime(out[\"date\"])\n",
+        "    return out.set_index(\"date\")\n",
+        "\n",
+        "ls_val_en  = compute_longshort(meta_val,  \"decile_en\")\n",
+        "ls_val_nn  = compute_longshort(meta_val,  \"decile_nn\")\n",
+        "ls_test_en = compute_longshort(meta_test, \"decile_en\")\n",
+        "ls_test_nn = compute_longshort(meta_test, \"decile_nn\")\n",
+        "\n",
+        "print(\"Long-short portfolios constructed.\")\n",
+        "print(f\"Validation period: {ls_val_en.index.min().date()} to {ls_val_en.index.max().date()}\")\n",
+        "print(f\"Test period:       {ls_test_en.index.min().date()} to {ls_test_en.index.max().date()}\")\n",
+        "print(f\"Number of valid validation months (EN): {len(ls_val_en)}\")\n",
+        "print(f\"Number of valid test months (EN): {len(ls_test_en)}\")"
+      ],
+      "id": "25e69712",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Exercise 3d: Performance metrics"
+      ],
+      "id": "6953b318"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "import statsmodels.api as sm\n",
+        "\n",
+        "def portfolio_stats(ls_returns, label, market_returns=None):\n",
+        "    \"\"\"\n",
+        "    Compute annualized mean, Sharpe ratio, and CAPM alpha with t-stat.\n",
+        "    \"\"\"\n",
+        "    r = ls_returns[\"ls_ret\"]\n",
+        "    ann_mean   = r.mean() * 12\n",
+        "    ann_sharpe = r.mean() / r.std() * np.sqrt(12)\n",
+        "\n",
+        "    if market_returns is not None:\n",
+        "        aligned = pd.concat([r, market_returns], axis=1).dropna()\n",
+        "        aligned.columns = [\"ls_ret\", \"mkt_ret\"]\n",
+        "        X_capm = sm.add_constant(aligned[\"mkt_ret\"])\n",
+        "        res = sm.OLS(aligned[\"ls_ret\"], X_capm).fit()\n",
+        "        alpha   = res.params[\"const\"] * 12\n",
+        "        alpha_t = res.tvalues[\"const\"]\n",
+        "    else:\n",
+        "        alpha, alpha_t = np.nan, np.nan\n",
+        "\n",
+        "    print(f\"\\n{label}\")\n",
+        "    print(f\"  Annualized mean excess return: {ann_mean:.4f} ({ann_mean*100:.2f}%)\")\n",
+        "    print(f\"  Annualized Sharpe ratio:       {ann_sharpe:.4f}\")\n",
+        "    print(f\"  CAPM alpha (annualized):       {alpha:.4f} ({alpha*100:.2f}%)\")\n",
+        "    print(f\"  CAPM alpha t-stat:             {alpha_t:.4f}\")\n",
+        "\n",
+        "    return {\"label\": label, \"ann_mean\": ann_mean, \"sharpe\": ann_sharpe,\n",
+        "            \"alpha\": alpha, \"alpha_t\": alpha_t}\n",
+        "\n",
+        "# Value-weighted market return per period\n",
+        "mkt_val  = meta_val.groupby(\"date\").apply(\n",
+        "    lambda g: np.average(g[\"ret_excess\"], weights=g[\"mktcap_lag\"])\n",
+        ").rename(\"mkt_ret\")\n",
+        "\n",
+        "mkt_test = meta_test.groupby(\"date\").apply(\n",
+        "    lambda g: np.average(g[\"ret_excess\"], weights=g[\"mktcap_lag\"])\n",
+        ").rename(\"mkt_ret\")\n",
+        "\n",
+        "# Performance for all four combinations\n",
+        "results_3d = []\n",
+        "results_3d.append(portfolio_stats(ls_val_en,  \"Elastic Net — Validation\", mkt_val))\n",
+        "results_3d.append(portfolio_stats(ls_val_nn,  \"Neural Net  — Validation\", mkt_val))\n",
+        "results_3d.append(portfolio_stats(ls_test_en, \"Elastic Net — Test\",       mkt_test))\n",
+        "results_3d.append(portfolio_stats(ls_test_nn, \"Neural Net  — Test\",       mkt_test))\n",
+        "\n",
+        "print(f\"\\nMarket benchmark — Validation\")\n",
+        "print(f\"  Annualized mean: {mkt_val.mean()*12*100:.2f}%\")\n",
+        "print(f\"  Sharpe ratio:    {mkt_val.mean()/mkt_val.std()*np.sqrt(12):.4f}\")\n",
+        "\n",
+        "print(f\"\\nMarket benchmark — Test\")\n",
+        "print(f\"  Annualized mean: {mkt_test.mean()*12*100:.2f}%\")\n",
+        "print(f\"  Sharpe ratio:    {mkt_test.mean()/mkt_test.std()*np.sqrt(12):.4f}\")"
+      ],
+      "id": "1f5f77a8",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Exercise 3e: Portfolio turnover"
+      ],
+      "id": "7c4d44c6"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "def compute_turnover(df, decile_col):\n",
+        "    \"\"\"\n",
+        "    Monthly turnover: average fraction of long/short legs that changes each month.\n",
+        "    \"\"\"\n",
+        "    turnovers = []\n",
+        "    dates = sorted(df[\"date\"].unique())\n",
+        "\n",
+        "    for i in range(1, len(dates)):\n",
+        "        prev = df[df[\"date\"] == dates[i-1]]\n",
+        "        curr = df[df[\"date\"] == dates[i]]\n",
+        "\n",
+        "        prev_long  = set(prev[prev[decile_col] == 9.0][\"permno\"])\n",
+        "        curr_long  = set(curr[curr[decile_col] == 9.0][\"permno\"])\n",
+        "        prev_short = set(prev[prev[decile_col] == 0.0][\"permno\"])\n",
+        "        curr_short = set(curr[curr[decile_col] == 0.0][\"permno\"])\n",
+        "\n",
+        "        long_to  = len(prev_long  - curr_long)  / max(len(prev_long),  1)\n",
+        "        short_to = len(prev_short - curr_short) / max(len(prev_short), 1)\n",
+        "        turnovers.append((long_to + short_to) / 2)\n",
+        "\n",
+        "    return np.mean(turnovers)\n",
+        "\n",
+        "to_val_en  = compute_turnover(meta_val,  \"decile_en\")\n",
+        "to_val_nn  = compute_turnover(meta_val,  \"decile_nn\")\n",
+        "to_test_en = compute_turnover(meta_test, \"decile_en\")\n",
+        "to_test_nn = compute_turnover(meta_test, \"decile_nn\")\n",
+        "\n",
+        "print(f\"Monthly turnover — Elastic Net:    Val={to_val_en:.3f}, Test={to_test_en:.3f}\")\n",
+        "print(f\"Monthly turnover — Neural Network: Val={to_val_nn:.3f}, Test={to_test_nn:.3f}\")"
+      ],
+      "id": "d067f44a",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "### Exercise 3f: Model comparison"
+      ],
+      "id": "5dfae278"
+    },
+    {
+      "cell_type": "code",
+      "metadata": {},
+      "source": [
+        "# Cumulative long-short returns for both models in both periods\n",
+        "fig_data = pd.DataFrame({\n",
+        "    \"EN_val\":  (1 + ls_val_en[\"ls_ret\"]).cumprod(),\n",
+        "    \"NN_val\":  (1 + ls_val_nn[\"ls_ret\"]).cumprod(),\n",
+        "    \"EN_test\": (1 + ls_test_en[\"ls_ret\"]).cumprod(),\n",
+        "    \"NN_test\": (1 + ls_test_nn[\"ls_ret\"]).cumprod(),\n",
+        "}).reset_index().melt(id_vars=\"date\", var_name=\"Model\", value_name=\"Cumulative Return\")\n",
+        "\n",
+        "(ggplot(fig_data, aes(x=\"date\", y=\"Cumulative Return\", color=\"Model\"))\n",
+        "    + geom_line(size=0.7)\n",
+        "    + labs(\n",
+        "        title=\"Cumulative Long-Short Portfolio Returns\",\n",
+        "        x=\"\", y=\"Cumulative Return\",\n",
+        "        caption=\"Value-weighted long-short portfolio: top decile minus bottom decile.\"\n",
+        "    )\n",
+        "    + theme_minimal()\n",
+        "    + theme(figure_size=(9, 4)))"
+      ],
+      "id": "858f6104",
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {},
+      "source": [
+        "Both models are compared across Sharpe ratio, CAPM alpha, and portfolio turnover. The Elastic Net is the linear benchmark and tends to have lower turnover due to its smooth, stable coefficient structure. The Neural Network captures nonlinear interactions but may overfit to short-lived patterns, leading to higher turnover and potentially lower net-of-cost returns. If the Neural Network's alpha does not sufficiently exceed the Elastic Net's to compensate for higher turnover costs, the Elastic Net is preferable from an investor's perspective."
+      ],
+      "id": "9bca1b64"
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3",
+      "language": "python",
+      "display_name": "Python 3 (ipykernel)",
+      "path": "/Users/AstridMoeller/AEF/course-repository/.venv/share/jupyter/kernels/python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

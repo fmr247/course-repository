@@ -43,10 +43,12 @@ First we read in the monthly stock characteristics data and restricting the samp
 ```{python}
 #| echo: false
 #| cache: false
-df = pd.read_parquet("//Users/AstridMoeller/AEF/data/stock_characteristics_monthly.parquet")
+# df = pd.read_parquet("//Users/AstridMoeller/AEF/data/stock_characteristics_monthly.parquet")
 
 # Reading in the file
-#| df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
+# df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
+
+df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
 df.head()
 
 # Keep observations from January 2000 onward
@@ -683,3 +685,102 @@ fig_data = pd.DataFrame({
 ```
 
 Both models are compared across Sharpe ratio, CAPM alpha, and portfolio turnover. The Elastic Net is the linear benchmark and tends to have lower turnover due to its smooth, stable coefficient structure. The Neural Network captures nonlinear interactions but may overfit to short-lived patterns, leading to higher turnover and potentially lower net-of-cost returns. If the Neural Network's alpha does not sufficiently exceed the Elastic Net's to compensate for higher turnover costs, the Elastic Net is preferable from an investor's perspective.
+
+
+
+## Exercise 4
+
+### Exercise 4a: Variable importance
+
+```{python}
+
+# Baseline test Sharpe ratios from Exercise 3d
+baseline_sharpe_en = ls_test_en["ls_ret"].mean() / ls_test_en["ls_ret"].std() * np.sqrt(12)
+baseline_sharpe_nn = ls_test_nn["ls_ret"].mean() / ls_test_nn["ls_ret"].std() * np.sqrt(12)
+
+# Reference values:
+# standardized continuous predictors -> 0
+# industry dummies -> mean in the test set
+reference_values = {
+    col: 0.0 if col in continuous_features else X_test[col].mean()
+    for col in X_test.columns
+}
+
+def variable_importance_sharpe_drop(model, X_test, meta_test, pred_col, decile_col,
+                                    baseline_sharpe, reference_values):
+    results = []
+
+    for feature in X_test.columns:
+        X_mod = X_test.copy()
+        X_mod[feature] = reference_values[feature]
+
+        tmp = meta_test.copy()
+        tmp[pred_col] = model.predict(X_mod)
+        tmp = assign_deciles(tmp, pred_col, decile_col)
+
+        ls_tmp = compute_longshort(tmp, decile_col)
+        perturbed_sharpe = ls_tmp["ls_ret"].mean() / ls_tmp["ls_ret"].std() * np.sqrt(12)
+
+        results.append({
+            "feature": feature,
+            "sharpe_drop": baseline_sharpe - perturbed_sharpe
+        })
+
+    return (
+        pd.DataFrame(results)
+        .sort_values("sharpe_drop", ascending=False)
+        .reset_index(drop=True)
+    )
+
+vi_en = variable_importance_sharpe_drop(
+    final_en, X_test, meta_test, "pred_en_vi", "decile_en_vi",
+    baseline_sharpe_en, reference_values
+)
+
+vi_nn = variable_importance_sharpe_drop(
+    final_nn, X_test, meta_test, "pred_nn_vi", "decile_nn_vi",
+    baseline_sharpe_nn, reference_values
+)
+
+top3_en = vi_en.head(3).copy()
+top3_en["model"] = "Elastic Net"
+
+top3_nn = vi_nn.head(3).copy()
+top3_nn["model"] = "Neural Network"
+
+top3_importance = pd.concat([top3_en, top3_nn], ignore_index=True)
+top3_importance = top3_importance[["model", "feature", "sharpe_drop"]]
+
+top3_importance.round(4)
+```
+
+Variable importance is measured as the drop in annualized test Sharpe ratio when one predictor is set to its mean and the long-short portfolio is rebuilt. For the Elastic Net, the top three predictors all have a Sharpe-ratio drop of 0.0000, indicating no meaningful variable importance under this metric. For the Neural Network, the most important predictors are characteristic_beta_x_macro_ep, sic_Manufacturing, and sic_Retail.
+
+
+### Exercise 4b: Ranking comparison
+```{python}
+
+
+rank_compare = (
+    vi_en.rename(columns={"sharpe_drop": "sharpe_drop_en"})
+    .merge(
+        vi_nn.rename(columns={"sharpe_drop": "sharpe_drop_nn"}),
+        on="feature",
+        how="outer"
+    )
+)
+
+rank_compare["rank_en"] = rank_compare["sharpe_drop_en"].rank(ascending=False, method="min")
+rank_compare["rank_nn"] = rank_compare["sharpe_drop_nn"].rank(ascending=False, method="min")
+rank_compare["rank_gap"] = (rank_compare["rank_en"] - rank_compare["rank_nn"]).abs()
+
+rank_compare[["feature", "rank_en", "rank_nn", "rank_gap"]].sort_values(
+    "rank_gap", ascending=False
+).head(5).round(1)
+```
+
+The rankings differ strongly across models. The Elastic Net shows almost no sensitivity to individual predictors, while the Neural Network places importance on one interaction term and two industry dummies. This likely reflects the Neural Network’s greater flexibility. However, its results should be interpreted cautiously because its test Sharpe ratio is negative.
+
+### Exercise 4c: Findings to financial theory
+
+The main Neural Network signal is characteristic_beta_x_macro_ep, which suggests state-dependent predictability: the pricing of market beta varies with aggregate valuation conditions. The importance of sic_Manufacturing and sic_Retail indicates that industry exposure also matters. Overall, the findings point more to state-dependent and industry-specific effects than to strong standalone linear premiums.

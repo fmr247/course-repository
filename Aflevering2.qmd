@@ -253,25 +253,26 @@ pd.DataFrame({
 
 The final feature matrix contains the 10 selected stock characteristics, 40 interaction terms between stock characteristics and macroeconomic variables, and industry dummies for the broad SIC divisions. 
 
-
 ## Exercise 2
-
 ### Exercise 2a: Model descriptions
 
-**Elastic Net** is a penalized linear regression model that combines the $L_1$ penalty from the Lasso and the $L_2$ penalty from Ridge regression. It minimizes the following objective function:
+**Elastic Net** is a penalized linear regression model that combines the $L_1$ penalty from the Lasso and the $L_2$ penalty from Ridge regression. It minimizes
 $$
 \min_{\beta} \frac{1}{N} \sum_{i=1}^N (y_i - x_i'\beta)^2 + \alpha \left( \lambda \|\beta\|_1 + (1-\lambda)\|\beta\|_2^2 \right)
 $$
-where the first term is the mean squared prediction error and the second term is a penalty on coefficient size. This helps control overfitting in high-dimensional settings with correlated predictors. This is particularly relevant in our setting, as the feature matrix includes stock characteristics, interaction terms, and industry dummies.
+where the first term is the mean squared prediction error and the second penalizes coefficient size, helping to control overfitting in high-dimensional settings with correlated predictors, as in our feature matrix.
 
-The key hyperparameters are the overall penalty strength (`alpha`) and the mixing parameter (`l1_ratio`), where `l1_ratio = 1` corresponds to the Lasso and `l1_ratio = 0` corresponds to Ridge.
+The key hyperparameters are the overall penalty strength (`alpha`) and the mixing parameter (`l1_ratio`), where `l1_ratio = 1` corresponds to the Lasso and `l1_ratio = 0` to Ridge.
 
-**Neural Network (MLP)** approximates $g(z_{i,t})$ as a composition of linear transformations and nonlinear activation functions across multiple hidden layers. The model is trained by minimizing the mean squared prediction error between predicted and realized excess returns. Each neuron computes $x_k^l = f\left(\theta_0^k + \sum_j z_j \theta_j^k\right)$, where $f$ is the ReLU activation function. The network is trained via backpropagation. The key hyperparameters are the number and size of hidden layers (`hidden_layer_sizes`), the $L_2$ regularization strength (`alpha`), and the maximum number of iterations (`max_iter`).
+**Neural Network (MLP)** approximates $g(z_{i,t})$ as a composition of linear transformations and nonlinear activation functions across multiple hidden layers. The model is trained by minimizing the mean squared prediction error. Each neuron computes $x_k^l = f\left(\theta_0^k + \sum_j z_j \theta_j^k\right)$, where $f$ is the ReLU activation function, and the network is trained via backpropagation.
+
+The key hyperparameters are the number and size of hidden layers (`hidden_layer_sizes`), the $L_2$ regularization strength (`alpha`), and the maximum number of iterations (`max_iter`).
 
 The two models provide a comparison between a structured, regularized linear benchmark and a more flexible nonlinear model.
 
 ### Exercise 2b: Time-respecting data split
 ```{python}
+#| echo: false
 from sklearn.preprocessing import StandardScaler
 
 # Split by unique dates rather than raw rows
@@ -309,14 +310,24 @@ X_train[continuous_features] = scaler.fit_transform(X_train[continuous_features]
 X_val[continuous_features]   = scaler.transform(X_val[continuous_features])
 X_test[continuous_features]  = scaler.transform(X_test[continuous_features])
 
-print(f"Train:      {meta_train['date'].min().date()} to {meta_train['date'].max().date()} ({len(X_train):,} obs)")
-print(f"Validation: {meta_val['date'].min().date()} to {meta_val['date'].max().date()} ({len(X_val):,} obs)")
-print(f"Test:       {meta_test['date'].min().date()} to {meta_test['date'].max().date()} ({len(X_test):,} obs)")
-print(f"Number of train months: {len(train_dates)}")
-print(f"Number of validation months: {len(val_dates)}")
-print(f"Number of test months: {len(test_dates)}")
-```
+split_summary = pd.DataFrame({
+    "Sample": ["Train", "Validation", "Test"],
+    "Start date": [
+        meta_train["date"].min().date(),
+        meta_val["date"].min().date(),
+        meta_test["date"].min().date()
+    ],
+    "End date": [
+        meta_train["date"].max().date(),
+        meta_val["date"].max().date(),
+        meta_test["date"].max().date()
+    ],
+    "Months": [len(train_dates), len(val_dates), len(test_dates)],
+    "Observations": [len(X_train), len(X_val), len(X_test)]
+})
 
+split_summary
+```
 The dataset is split chronologically to avoid look-ahead bias, ensuring that training observations precede validation observations, which in turn precede test observations. The most recent 20% of months are reserved as the test set, providing a truly out-of-sample evaluation period.
 
 The remaining 80% is split into 75% training and 25% validation, yielding an approximate 60/20/20 split. This reflects a trade-off between reliable parameter estimation and effective model selection.
@@ -332,66 +343,71 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import root_mean_squared_error
 ```
 ```{python}
+#| echo: false
 #| cache: true
-# ── Elastic Net tuning ────────────────────────────────────────────────────────
-# Compact grid to keep computation tractable on large panel data
+
 en_param_grid = {
-    "alpha":    [0.001, 0.1],
+    "alpha": [0.001, 0.1],
     "l1_ratio": [0.2, 0.8],
 }
 
 en_results = []
+
 for params in [dict(zip(en_param_grid, v)) for v in itertools.product(*en_param_grid.values())]:
     model = ElasticNet(max_iter=5000, fit_intercept=True, **params)
     model.fit(X_train, y_train)
-    train_rmse = root_mean_squared_error(y_train, model.predict(X_train))
-    val_rmse   = root_mean_squared_error(y_val,   model.predict(X_val))
-    en_results.append({**params, "train_rmse": train_rmse, "val_rmse": val_rmse})
+
+    en_results.append({
+        **params,
+        "train_rmse": root_mean_squared_error(y_train, model.predict(X_train)),
+        "val_rmse": root_mean_squared_error(y_val, model.predict(X_val))
+    })
 
 en_results_df = pd.DataFrame(en_results).sort_values("val_rmse")
-print("Elastic Net tuning results:")
-print(en_results_df.round(6).to_string(index=False))
 
-best_en_params = en_results_df.iloc[0][list(en_param_grid.keys())].to_dict()
-print(f"\nBest Elastic Net params: {best_en_params}")
+best_en_params = en_results_df.iloc[0][["alpha", "l1_ratio"]].to_dict()
+
+en_results_df.round(6)
 ```
 ```{python}
+#| echo: false
 #| cache: true
-# ── Neural Network tuning ─────────────────────────────────────────────────────
-# Compact grid: 1 architecture × 2 regularization strengths = 2 fits
+
 nn_param_grid = {
     "hidden_layer_sizes": [(32, 16)],
-    "alpha":              [0.001, 0.01],
+    "alpha": [0.001, 0.01],
 }
 
 nn_results = []
+
 for params in [dict(zip(nn_param_grid, v)) for v in itertools.product(*nn_param_grid.values())]:
     model = MLPRegressor(
-        activation="relu", solver="adam",
-        max_iter=50, random_state=42, **params
+        activation="relu",
+        solver="adam",
+        max_iter=50,
+        random_state=42,
+        **params
     )
     model.fit(X_train, y_train)
-    train_rmse = root_mean_squared_error(y_train, model.predict(X_train))
-    val_rmse   = root_mean_squared_error(y_val,   model.predict(X_val))
+
     nn_results.append({
         "hidden_layers": str(params["hidden_layer_sizes"]),
         "alpha": params["alpha"],
-        "train_rmse": train_rmse,
-        "val_rmse": val_rmse
+        "train_rmse": root_mean_squared_error(y_train, model.predict(X_train)),
+        "val_rmse": root_mean_squared_error(y_val, model.predict(X_val))
     })
 
 nn_results_df = pd.DataFrame(nn_results).sort_values("val_rmse")
-print("Neural Network tuning results:")
-print(nn_results_df.round(6).to_string(index=False))
-
 best_nn_params = nn_results_df.iloc[0]
-print(f"\nBest NN: layers={best_nn_params['hidden_layers']}, alpha={best_nn_params['alpha']}")
+
+nn_results_df.round(6)
 ```
 ```{python}
+#| echo: false
 #| cache: true
 import ast
 
-# ── Fit final models on best hyperparameters ──────────────────────────────────
+# Fit final models
 final_en = ElasticNet(
     alpha=best_en_params["alpha"],
     l1_ratio=best_en_params["l1_ratio"],
@@ -404,14 +420,23 @@ best_hidden = ast.literal_eval(best_nn_params["hidden_layers"])
 final_nn = MLPRegressor(
     hidden_layer_sizes=best_hidden,
     alpha=best_nn_params["alpha"],
-    activation="relu", solver="adam",
-    max_iter=50, random_state=42
+    activation="relu",
+    solver="adam",
+    max_iter=50,
+    random_state=42
 )
 final_nn.fit(X_train, y_train)
 
-print("Final models fitted successfully.")
-print(f"Elastic Net    — val RMSE: {root_mean_squared_error(y_val, final_en.predict(X_val)):.6f}")
-print(f"Neural Network — val RMSE: {root_mean_squared_error(y_val, final_nn.predict(X_val)):.6f}")
+# Compute validation RMSE
+val_results = pd.DataFrame({
+    "Model": ["Elastic Net", "Neural Network"],
+    "Validation RMSE": [
+        root_mean_squared_error(y_val, final_en.predict(X_val)),
+        root_mean_squared_error(y_val, final_nn.predict(X_val))
+    ]
+})
+
+val_results.round(6)
 ```
 
 Hyperparameters are tuned using grid search, where each specification is evaluated on the validation set using RMSE, consistent with the MSPE objective in GKX. The Elastic Net grid varies both penalty strength and the balance between $L_1$ and $L_2$ regularization, while the Neural Network grid varies the regularization strength for a fixed architecture.
@@ -422,12 +447,13 @@ The final model for each method is selected based on the lowest validation RMSE 
 
 ### Exercise 2d: Save models to disk
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 import joblib
 
-# Save final model objects to disk for peer review
 joblib.dump(final_en, "model_elastic_net.joblib")
 joblib.dump(final_nn, "model_neural_network.joblib")
-
 ```
 
 To load the models for peer review, run:
@@ -447,6 +473,9 @@ To load the models for replication or further analysis, the following code can b
 ### Exercise 3a: Generate predicted excess returns
 
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 # Generate predictions directly from fitted models
 pred_val_en = final_en.predict(X_val)
 pred_val_nn = final_nn.predict(X_val)
@@ -469,6 +498,9 @@ The predictions are used to rank stocks in portfolio construction, where higher 
 
 ### Exercise 3b: Decile portfolio sorts
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 def assign_deciles(df, pred_col, decile_col):
     """
     Assign stocks to decile portfolios each month based on predicted returns.
@@ -477,13 +509,10 @@ def assign_deciles(df, pred_col, decile_col):
     df = df.copy()
 
     def month_deciles(x):
-        # If too few observations in a month, return NaN
         if x.notna().sum() < 10:
             return pd.Series(np.nan, index=x.index)
 
-        # Rank first so tied values do not break qcut
         ranked = x.rank(method="first")
-
         return pd.qcut(ranked, 10, labels=False)
 
     df[decile_col] = df.groupby("date")[pred_col].transform(month_deciles)
@@ -507,6 +536,9 @@ This procedure generates a cross-sectional ranking that reflects the model’s e
 
 ### Exercise 3c: Long-short portfolio
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 def compute_longshort(df, decile_col):
     """
     Compute monthly value-weighted long-short portfolio returns.
@@ -553,22 +585,16 @@ ls_val_en  = compute_longshort(meta_val,  "decile_en")
 ls_val_nn  = compute_longshort(meta_val,  "decile_nn")
 ls_test_en = compute_longshort(meta_test, "decile_en")
 ls_test_nn = compute_longshort(meta_test, "decile_nn")
-
-print("Long-short portfolios constructed.")
-print(f"Validation period: {ls_val_en.index.min().date()} to {ls_val_en.index.max().date()}")
-print(f"Test period:       {ls_test_en.index.min().date()} to {ls_test_en.index.max().date()}")
-print(f"Number of valid validation months (EN): {len(ls_val_en)}")
-print(f"Number of valid test months (EN): {len(ls_test_en)}")
 ```
 
 ### Exercise 3d: Performance metrics
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 import statsmodels.api as sm
 
-def portfolio_stats(ls_returns, label, market_returns=None):
-    """
-    Compute annualized mean, Sharpe ratio, and CAPM alpha with t-stat.
-    """
+def portfolio_stats(ls_returns, market_returns=None):
     r = ls_returns["ls_ret"]
     ann_mean   = r.mean() * 12
     ann_sharpe = r.mean() / r.std() * np.sqrt(12)
@@ -583,17 +609,15 @@ def portfolio_stats(ls_returns, label, market_returns=None):
     else:
         alpha, alpha_t = np.nan, np.nan
 
-    print(f"\n{label}")
-    print(f"  Annualized mean excess return: {ann_mean:.4f} ({ann_mean*100:.2f}%)")
-    print(f"  Annualized Sharpe ratio:       {ann_sharpe:.4f}")
-    print(f"  CAPM alpha (annualized):       {alpha:.4f} ({alpha*100:.2f}%)")
-    print(f"  CAPM alpha t-stat:             {alpha_t:.4f}")
+    return {
+        "ann_mean": ann_mean,
+        "sharpe": ann_sharpe,
+        "alpha": alpha,
+        "alpha_t": alpha_t
+    }
 
-    return {"label": label, "ann_mean": ann_mean, "sharpe": ann_sharpe,
-            "alpha": alpha, "alpha_t": alpha_t}
-
-# Value-weighted market return per period
-mkt_val  = meta_val.groupby("date").apply(
+# Market returns
+mkt_val = meta_val.groupby("date").apply(
     lambda g: np.average(g["ret_excess"], weights=g["mktcap_lag"])
 ).rename("mkt_ret")
 
@@ -601,24 +625,28 @@ mkt_test = meta_test.groupby("date").apply(
     lambda g: np.average(g["ret_excess"], weights=g["mktcap_lag"])
 ).rename("mkt_ret")
 
-# Performance for all four combinations
-results_3d = []
-results_3d.append(portfolio_stats(ls_val_en,  "Elastic Net — Validation", mkt_val))
-results_3d.append(portfolio_stats(ls_val_nn,  "Neural Net  — Validation", mkt_val))
-results_3d.append(portfolio_stats(ls_test_en, "Elastic Net — Test",       mkt_test))
-results_3d.append(portfolio_stats(ls_test_nn, "Neural Net  — Test",       mkt_test))
+# Collect results
+results_3d = [
+    {"Model": "Elastic Net", "Sample": "Validation", **portfolio_stats(ls_val_en, mkt_val)},
+    {"Model": "Neural Network", "Sample": "Validation", **portfolio_stats(ls_val_nn, mkt_val)},
+    {"Model": "Elastic Net", "Sample": "Test", **portfolio_stats(ls_test_en, mkt_test)},
+    {"Model": "Neural Network", "Sample": "Test", **portfolio_stats(ls_test_nn, mkt_test)},
+]
 
-print(f"\nMarket benchmark — Validation")
-print(f"  Annualized mean: {mkt_val.mean()*12*100:.2f}%")
-print(f"  Sharpe ratio:    {mkt_val.mean()/mkt_val.std()*np.sqrt(12):.4f}")
+results_3d_df = pd.DataFrame(results_3d)
+```
 
-print(f"\nMarket benchmark — Test")
-print(f"  Annualized mean: {mkt_test.mean()*12*100:.2f}%")
-print(f"  Sharpe ratio:    {mkt_test.mean()/mkt_test.std()*np.sqrt(12):.4f}")
+```{python}
+#| echo: false
+
+results_3d_df.round(4)
 ```
 
 ### Exercise 3e: Portfolio turnover
 ```{python}
+#| echo: false
+#| results: 'hide'
+
 def compute_turnover(df, decile_col):
     """
     Monthly turnover: average fraction of long/short legs that changes each month.
@@ -635,7 +663,7 @@ def compute_turnover(df, decile_col):
         prev_short = set(prev[prev[decile_col] == 0.0]["permno"])
         curr_short = set(curr[curr[decile_col] == 0.0]["permno"])
 
-        long_to  = len(prev_long  - curr_long)  / max(len(prev_long),  1)
+        long_to  = len(prev_long  - curr_long)  / max(len(prev_long), 1)
         short_to = len(prev_short - curr_short) / max(len(prev_short), 1)
         turnovers.append((long_to + short_to) / 2)
 
@@ -646,33 +674,50 @@ to_val_nn  = compute_turnover(meta_val,  "decile_nn")
 to_test_en = compute_turnover(meta_test, "decile_en")
 to_test_nn = compute_turnover(meta_test, "decile_nn")
 
-print(f"Monthly turnover — Elastic Net:    Val={to_val_en:.3f}, Test={to_test_en:.3f}")
-print(f"Monthly turnover — Neural Network: Val={to_val_nn:.3f}, Test={to_test_nn:.3f}")
+turnover_df = pd.DataFrame({
+    "Model": ["Elastic Net", "Neural Network"],
+    "Validation": [to_val_en, to_val_nn],
+    "Test": [to_test_en, to_test_nn]
+})
+```
+
+```{python}
+#| echo: false
+
+turnover_df.round(3)
 ```
 
 ### Exercise 3f: Model comparison
 ```{python}
-# Cumulative long-short returns for both models in both periods
+#| echo: false
+#| fig-width: 8
+#| fig-height: 4
+
 fig_data = pd.DataFrame({
     "EN_val":  (1 + ls_val_en["ls_ret"]).cumprod(),
     "NN_val":  (1 + ls_val_nn["ls_ret"]).cumprod(),
     "EN_test": (1 + ls_test_en["ls_ret"]).cumprod(),
     "NN_test": (1 + ls_test_nn["ls_ret"]).cumprod(),
-}).reset_index().melt(id_vars="date", var_name="Model", value_name="Cumulative Return")
+}).reset_index().melt(
+    id_vars="date",
+    var_name="Model",
+    value_name="cumulative_return"
+)
 
-(ggplot(fig_data, aes(x="date", y="Cumulative Return", color="Model"))
+(
+    ggplot(fig_data, aes(x="date", y="cumulative_return", color="Model"))
     + geom_line(size=0.7)
     + labs(
         title="Cumulative Long-Short Portfolio Returns",
-        x="", y="Cumulative Return",
+        x="",
+        y="Cumulative return",
         caption="Value-weighted long-short portfolio: top decile minus bottom decile."
     )
     + theme_minimal()
-    + theme(figure_size=(9, 4)))
+)
 ```
 
 Both models are compared across Sharpe ratio, CAPM alpha, and portfolio turnover. The Elastic Net is the linear benchmark and tends to have lower turnover due to its smooth, stable coefficient structure. The Neural Network captures nonlinear interactions but may overfit to short-lived patterns, leading to higher turnover and potentially lower net-of-cost returns. If the Neural Network's alpha does not sufficiently exceed the Elastic Net's to compensate for higher turnover costs, the Elastic Net is preferable from an investor's perspective.
-
 
 ## Exercise 4
 

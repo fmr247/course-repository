@@ -27,7 +27,7 @@ format:
 # Exercise
 
 ## Exercise 1.
-The goal of this exercise is to construct a clean dataset for cross-sectional stock return prediction. We keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic - macro interactions and industry dummies.
+The goal here is to construct a clean dataset for cross-sectional stock return prediction. We keep observations from January 2000 onward, select a limited set of influential predictors, document missing-value handling, and prepare a feature matrix with characteristic - macro interactions and industry dummies.
 
 ```{python}
 import pandas as pd
@@ -48,7 +48,7 @@ First we read in the monthly stock characteristics data and restricting the samp
 # Reading in the file
 # df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
 
-df = pd.read_parquet("/Users/nannamunch/Desktop/Kandidat Økonomi/Advanced empirical finance/Mandatory assignment 2/stock_characteristics_monthly.parquet")
+df = pd.read_parquet("/Users/esmeraldalarsson/Desktop/Advanced Empirical Finance/stock_characteristics_monthly.parquet")
 df.head()
 
 # Keep observations from January 2000 onward
@@ -114,8 +114,7 @@ missing_table = (
 
 missing_table
 ```
-Missing stock characteristics are imputed using the cross-sectional monthly median, preserving the cross section and using only contemporaneous information. Macroeconomic variables are forward- and backward-filled, reflecting their time-series nature. Observations with missing excess returns or lagged market capitalization are dropped, as these are required for later analysis.
-
+Missing stock characteristics are imputed using the monthly cross-sectional median, preserving contemporaneous information. Macroeconomic variables are forward- and backward-filled. Observations with missing excess returns or lagged market capitalization are dropped, as they are required for the analysis.
 
 ```{python}
 # Impute stock characteristics with monthly cross-sectional medians
@@ -203,7 +202,7 @@ monthly_mean_ret = (
 )
 ```
 
-Overall, the sample remains large and suited for machine learning. The missing-value treatment preserves the panel structure and follows a conservative logic: firm-level predictors are imputed cross-sectionally within month, whereas macroeconomic predictors are completed along the time dimension.
+The sample remains large and suitable for machine learning. Missing values are handled conservatively, with firm-level predictors imputed cross-sectionally and macro variables filled over time.
 
 ### 1c: Feature matrix construction
 The assignment asks for a feature matrix consisting of stock characteristics and all interactions between stock characteristics and macroeconomic variables. With 10 stock characteristics and 4 macro predictors, this yields 10+10×4=50 continuous predictors. We then add industry dummies based on the recoded SIC divisions.
@@ -267,15 +266,9 @@ where the first term is the mean squared prediction error and the second term is
 
 The key hyperparameters are the overall penalty strength (`alpha`) and the mixing parameter (`l1_ratio`), where `l1_ratio = 1` corresponds to the Lasso and `l1_ratio = 0` corresponds to Ridge.
 
-**Elastic Net** is a penalized linear regression model that combines the $L_1$ penalty from the Lasso and the $L_2$ penalty from Ridge regression. It minimizes the following objective function:
-$$
-\min_{\beta} \frac{1}{N} \sum_{i=1}^N (y_i - x_i'\beta)^2 + \alpha \left( \lambda \|\beta\|_1 + (1-\lambda)\|\beta\|_2^2 \right)
-$$
-where the first term is the mean squared prediction error and the second term is a penalty on coefficient size. This helps control overfitting in high-dimensional settings with correlated predictors. This is particularly relevant in our setting, as the feature matrix includes stock characteristics, interaction terms, and industry dummies. The key hyperparameters are the overall penalty strength (`alpha`) and the mixing parameter (`l1_ratio`), where `l1_ratio = 1` corresponds to the Lasso and `l1_ratio = 0` corresponds to Ridge.
-
 **Neural Network (MLP)** approximates $g(z_{i,t})$ as a composition of linear transformations and nonlinear activation functions across multiple hidden layers. The model is trained by minimizing the mean squared prediction error between predicted and realized excess returns. Each neuron computes $x_k^l = f\left(\theta_0^k + \sum_j z_j \theta_j^k\right)$, where $f$ is the ReLU activation function. The network is trained via backpropagation. The key hyperparameters are the number and size of hidden layers (`hidden_layer_sizes`), the $L_2$ regularization strength (`alpha`), and the maximum number of iterations (`max_iter`).
 
-Together, the two models provide a comparison between a structured, regularized linear benchmark and a more flexible nonlinear model.
+The two models provide a comparison between a structured, regularized linear benchmark and a more flexible nonlinear model.
 
 ### Exercise 2b: Time-respecting data split
 ```{python}
@@ -324,13 +317,11 @@ print(f"Number of validation months: {len(val_dates)}")
 print(f"Number of test months: {len(test_dates)}")
 ```
 
-The dataset is split chronologically to avoid look-ahead bias, ensuring that all training observations precede validation observations, which in turn precede test observations. The most recent 20% of months are reserved as a test set, providing a genuinely out-of-sample period for final model evaluation.
+The dataset is split chronologically to avoid look-ahead bias, ensuring that training observations precede validation observations, which in turn precede test observations. The most recent 20% of months are reserved as the test set, providing a truly out-of-sample evaluation period.
 
-Among the remaining 80% of the data, we allocate 75% to training and 25% to validation, yielding an approximate 60/20/20 split overall. This choice reflects a trade-off between estimation accuracy and model selection. A relatively large training set is needed for reliable estimation of model parameters, especially for the Neural Network, which is more flexible and data-intensive. At the same time, a sufficiently large validation set is required to compare hyperparameter choices under realistic out-of-sample conditions.
+The remaining 80% is split into 75% training and 25% validation, yielding an approximate 60/20/20 split. This reflects a trade-off between reliable parameter estimation and effective model selection.
 
-The split is implemented at the monthly level rather than at the observation level to preserve the panel structure and ensure that all stocks from a given month are assigned to the same subset. Continuous predictors are standardized using the training data only, and the same transformation is applied to the validation and test sets to prevent data leakage.
-
-
+The split is done at the monthly level to preserve the panel structure. Continuous predictors are standardized using the training data only, and the same transformation is applied to validation and test sets to avoid data leakage.
 
 ### Exercise 2c: Hyperparameter tuning
 ```{python}
@@ -423,14 +414,11 @@ print(f"Elastic Net    — val RMSE: {root_mean_squared_error(y_val, final_en.pr
 print(f"Neural Network — val RMSE: {root_mean_squared_error(y_val, final_nn.predict(X_val)):.6f}")
 ```
 
-Hyperparameters are tuned using grid search, where each candidate specification is evaluated on the validation set using root mean squared prediction error (RMSE), consistent with the MSPE-minimization objective in GKX. The Elastic Net grid varies both the penalty strength and the balance between $L_1$ and $L_2$ regularization (4 combinations), while the Neural Network grid varies the regularization strength for one chosen architecture (2 combinations).
+Hyperparameters are tuned using grid search, where each specification is evaluated on the validation set using RMSE, consistent with the MSPE objective in GKX. The Elastic Net grid varies both penalty strength and the balance between $L_1$ and $L_2$ regularization, while the Neural Network grid varies the regularization strength for a fixed architecture.
 
-The tuning results illustrate the bias–variance trade-off. For both models, lower training RMSE does not necessarily translate into lower validation RMSE. In particular, models with weaker regularization tend to fit the training data more closely but may perform worse out-of-sample due to overfitting. Conversely, stronger regularization increases bias but can improve generalization by reducing variance.
+The results illustrate the bias–variance trade-off: lower training RMSE does not necessarily imply lower validation RMSE. Weaker regularization may lead to overfitting, while stronger regularization increases bias but can improve generalization.
 
-For the Elastic Net, the selected hyperparameters balance these effects by limiting coefficient magnitude while retaining predictive signal. For the Neural Network, the restricted grid reflects computational constraints and the large sample size, but still allows us to assess how regularization affects out-of-sample performance.
-
-The final model for each method is chosen as the specification with the lowest validation RMSE, since the objective is to maximize out-of-sample predictive accuracy rather than in-sample fit.
-
+The final model for each method is selected based on the lowest validation RMSE to maximize out-of-sample predictive performance.
 
 ### Exercise 2d: Save models to disk
 ```{python}
@@ -476,9 +464,8 @@ meta_test["pred_en"] = pred_test_en
 meta_test["pred_nn"] = pred_test_nn
 ```
 
-Using the fitted models, we generate predicted excess returns for each stock-month observation in both the validation and test samples. These predictions represent the model’s estimate of expected returns based on firm characteristics, macroeconomic variables, and their interactions.
-
-The predicted values serve as the ranking signal in the subsequent portfolio construction. Stocks with higher predicted excess returns are interpreted as more attractive investment opportunities and will be assigned to higher deciles, while stocks with lower predicted values will be placed in lower deciles.
+Using the fitted models, we generate predicted excess returns for each stock-month observation in the validation and test samples. These predictions reflect expected returns based on firm characteristics, macroeconomic variables, and their interactions.
+The predictions are used to rank stocks in portfolio construction, where higher predicted returns correspond to higher deciles and more attractive investment opportunities.
 
 ### Exercise 3b: Decile portfolio sorts
 ```{python}
@@ -511,11 +498,11 @@ meta_test = assign_deciles(meta_test, "pred_en", "decile_en")
 meta_test = assign_deciles(meta_test, "pred_nn", "decile_nn")
 ```
 
-Stocks are sorted into decile portfolios each month based on their predicted excess returns. Within each month, stocks are ranked according to the model’s predictions and then divided into ten groups of approximately equal size, ranging from the lowest predicted returns (decile 0) to the highest (decile 9).
+Stocks are sorted into decile portfolios each month based on predicted excess returns. Within each month, stocks are ranked and divided into ten groups of approximately equal size, from the lowest (decile 0) to the highest (decile 9).
 
-To ensure stable portfolio formation, predicted values are first ranked within each month before applying quantile-based sorting. This avoids issues where many identical predictions would otherwise lead to dropped bins in the quantile procedure. Months with very few observations are excluded from the sorting step.
+To ensure stable portfolio formation, predictions are ranked before applying quantile sorting, avoiding issues with tied values. Months with very few observations are excluded.
 
-This procedure produces a cross-sectional ranking of stocks that reflects the model’s implied expected return signal, which is used in the subsequent construction of long-short portfolios.
+This procedure generates a cross-sectional ranking that reflects the model’s expected return signal and is used to construct long-short portfolios.
 
 
 ### Exercise 3c: Long-short portfolio
@@ -685,7 +672,6 @@ fig_data = pd.DataFrame({
 ```
 
 Both models are compared across Sharpe ratio, CAPM alpha, and portfolio turnover. The Elastic Net is the linear benchmark and tends to have lower turnover due to its smooth, stable coefficient structure. The Neural Network captures nonlinear interactions but may overfit to short-lived patterns, leading to higher turnover and potentially lower net-of-cost returns. If the Neural Network's alpha does not sufficiently exceed the Elastic Net's to compensate for higher turnover costs, the Elastic Net is preferable from an investor's perspective.
-
 
 
 ## Exercise 4
